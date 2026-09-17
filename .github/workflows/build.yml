@@ -58,7 +58,7 @@ jobs:
       - name: Add WiX UI extension
         run: wix extension add WixToolset.UI.wixext/4.0.5
       - name: Build MSI
-        run: dotnet build installer/AgySize.Installer.wixproj -c Release -p:PublishDir=publish
+        run: dotnet build AgySize.Installer.wixproj -c Release -p:PublishDir=publish
         working-directory: installer
       - name: Upload MSI
         uses: actions/upload-artifact@v4
