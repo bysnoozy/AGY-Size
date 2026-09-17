@@ -2,6 +2,10 @@
 
   <PropertyGroup>
     <OutputType>Package</OutputType>
+    <!-- L'installeur cible x64 uniquement (AgySize.App est publié en win-x64) : sans ce réglage,
+         les composants générés par Heat restent 32 bits alors qu'ils sont copiés dans
+         ProgramFiles64Folder, ce que le validateur ICE80 rejette. -->
+    <Platform>x64</Platform>
   </PropertyGroup>
 
   <ItemGroup>
