@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AgySize.Core</RootNamespace>
+    <AssemblyName>AgySize.Core</AssemblyName>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Références explicites : ces API (registre, ACL NTFS) sont réintégrées au framework partagé
+         depuis .NET 5+, mais on les référence explicitement pour garantir la compilation, y compris
+         lorsque le projet est compilé sur Linux/macOS (usage effectif limité à Windows via
+         OperatingSystem.IsWindows()). -->
+    <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
+    <PackageReference Include="System.Security.AccessControl" Version="6.0.1" />
+    <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
+  </ItemGroup>
+
+</Project>

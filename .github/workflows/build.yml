@@ -1,0 +1,67 @@
+name: Build and test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & test (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore AgySize.sln
+      - name: Build
+        run: dotnet build AgySize.sln --no-restore -c Release
+      - name: Test
+        run: dotnet test tests/AgySize.Core.Tests/AgySize.Core.Tests.csproj --no-restore -c Release
+
+  publish-windows:
+    name: Publish Windows executables
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish AgySize.App (exécutable autonome, mode ".exe")
+        run: dotnet publish src/AgySize.App/AgySize.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-x64
+      - name: Publish AgySize.Cli (pour les scans planifiés)
+        run: dotnet publish src/AgySize.Cli/AgySize.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-x64
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AGY-Size-win-x64
+          path: publish/win-x64
+
+  build-installer:
+    name: Build MSI installer (expérimental)
+    runs-on: windows-latest
+    needs: publish-windows
+    # Best-effort : ce job ne bloque pas le reste de la CI si WiX échoue. Voir installer/README.md.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish app for installer (dossier non compressé)
+        run: dotnet publish src/AgySize.App/AgySize.App.csproj -c Release -r win-x64 --self-contained true -o installer/publish
+      - name: Install WiX toolset
+        run: dotnet tool install --global wix --version 4.0.5
+      - name: Add WiX UI extension
+        run: wix extension add WixToolset.UI.wixext/4.0.5
+      - name: Build MSI
+        run: dotnet build installer/AgySize.Installer.wixproj -c Release -p:PublishDir=publish
+        working-directory: installer
+      - name: Upload MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: AGY-Size-installer
+          path: installer/bin/Release/*.msi

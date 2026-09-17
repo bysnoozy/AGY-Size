@@ -1,0 +1,14 @@
+<Project Sdk="WixToolset.Sdk/4.0.5">
+
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <!-- PublishDir est fourni en ligne de commande par la CI :
+         dotnet build AgySize.Installer.wixproj -p:PublishDir=<dossier publié de AgySize.App> -->
+    <DefineConstants>PublishDir=$(PublishDir)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.5" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,200 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:AgySize.App.Views.Controls"
+        x:Class="AgySize.App.MainWindow"
+        Title="AGY-Size — Espace disque, droits et journal"
+        Width="1280" Height="800" MinWidth="960" MinHeight="600"
+        Background="#F4F6F9">
+    <!-- Icon="avares://AgySize.App/Assets/logo.ico" : décommenter une fois le logo ajouté (voir assets/README.md) -->
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="#1B3A63" Padding="16,10">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <!-- Logo AGYTEK : décommenter une fois assets/logo.png ajouté (voir assets/README.md)
+                <Image Source="avares://AgySize.App/Assets/logo.png" Height="28" /> -->
+                <TextBlock Text="AGY-Size" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" />
+                <TextBlock Text="Espace disque · Droits d'accès · Journal" FontSize="13" Foreground="#B9C6DA" VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
+        <Grid Margin="12" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+            <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                <Button DockPanel.Dock="Right" Content="Parcourir..." Width="100" Margin="8,0,0,0" Click="Browse_Click" />
+                <TextBlock DockPanel.Dock="Left" Text="Dossier :" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBox Text="{Binding RootPath}" VerticalContentAlignment="Center" />
+            </DockPanel>
+
+            <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+                <Button Content="Lancer l'analyse" Width="130" Margin="0,0,8,4" Command="{Binding StartScanCommand}" Background="#4F7CAC" Foreground="White" />
+                <Button Content="Annuler" Width="100" Margin="0,0,8,4" Command="{Binding CancelScanCommand}" />
+                <Button Content="Exporter CSV" Width="120" Margin="0,0,8,4" Click="ExportCsv_Click" IsEnabled="{Binding CanExport}" />
+                <Button Content="Exporter HTML" Width="120" Margin="0,0,8,4" Click="ExportHtml_Click" IsEnabled="{Binding CanExport}" />
+                <CheckBox Content="Analyser les droits (plus lent)" IsChecked="{Binding AnalyzePermissions}" VerticalAlignment="Center" Margin="8,0,8,4" />
+                <CheckBox Content="Démarrer avec Windows" IsChecked="{Binding AutoStartEnabled}" VerticalAlignment="Center" Margin="0,0,8,4" />
+                <TextBlock Text="{Binding ProgressText}" VerticalAlignment="Center" Foreground="#555555" Margin="8,0,0,4" />
+            </WrapPanel>
+
+            <UniformGrid Grid.Row="2" Columns="5" Margin="0,0,0,8">
+                <Border Background="#F3F2F1" CornerRadius="6" Margin="0,0,8,0" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="{Binding TotalFiles}" FontSize="20" FontWeight="Bold" />
+                        <TextBlock Text="Fichiers" Foreground="#555555" />
+                    </StackPanel>
+                </Border>
+                <Border Background="#F3F2F1" CornerRadius="6" Margin="0,0,8,0" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="{Binding TotalFolders}" FontSize="20" FontWeight="Bold" />
+                        <TextBlock Text="Dossiers" Foreground="#555555" />
+                    </StackPanel>
+                </Border>
+                <Border Background="#F3F2F1" CornerRadius="6" Margin="0,0,8,0" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="{Binding TotalSize}" FontSize="20" FontWeight="Bold" />
+                        <TextBlock Text="Taille totale" Foreground="#555555" />
+                    </StackPanel>
+                </Border>
+                <Border Background="#F3F2F1" CornerRadius="6" Margin="0,0,8,0" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="{Binding EmptyFolderCount}" FontSize="20" FontWeight="Bold" />
+                        <TextBlock Text="Dossiers vides" Foreground="#555555" />
+                    </StackPanel>
+                </Border>
+                <Border Background="#F3F2F1" CornerRadius="6" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="{Binding PermissionFindingCount}" FontSize="20" FontWeight="Bold" />
+                        <TextBlock Text="Constats sur les droits" Foreground="#555555" />
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <WrapPanel Grid.Row="3" Margin="0,0,0,8">
+                <Button Content="Supprimer la sélection" Width="170" Margin="0,0,8,4" Click="DeleteSelected_Click" />
+                <Button Content="Déplacer la sélection..." Width="170" Margin="0,0,16,4" Click="MoveSelected_Click" />
+                <TextBlock Text="Planifier un scan quotidien à :" VerticalAlignment="Center" Margin="0,0,8,4" />
+                <TextBox Text="{Binding ScheduleTime}" Width="70" Margin="0,0,8,4" />
+                <Button Content="Planifier" Width="90" Margin="0,0,8,4" Command="{Binding ScheduleDailyScanCommand}" />
+            </WrapPanel>
+
+            <TabControl Grid.Row="4">
+                <TabItem Header="Arborescence">
+                    <TreeView ItemsSource="{Binding TreeRoots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate ItemsSource="{Binding Children}">
+                                <Grid ColumnDefinitions="*,140,70,110" Margin="0,2">
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" VerticalAlignment="Center" />
+                                    <ProgressBar Grid.Column="1" Value="{Binding PercentOfRoot}" Maximum="100" Height="10"
+                                                 VerticalAlignment="Center" Foreground="#4F7CAC" Background="#E1E6EC" />
+                                    <TextBlock Grid.Column="2" Text="{Binding PercentDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="3" Text="{Binding SizeDisplay}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </Grid>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </TabItem>
+
+                <TabItem Header="Treemap">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8" Spacing="12">
+                            <Button Content="⬆ Remonter" Click="TreemapUp_Click" />
+                            <TextBlock Text="{Binding TreemapPath}" VerticalAlignment="Center" Foreground="#555555" />
+                        </StackPanel>
+                        <controls:TreemapControl x:Name="Treemap" Node="{Binding TreemapNode}" />
+                    </DockPanel>
+                </TabItem>
+
+                <TabItem Header="Types de fichiers">
+                    <DataGrid ItemsSource="{Binding ExtensionRows}" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Extension" Binding="{Binding Extension}" Width="150" />
+                            <DataGridTextColumn Header="Fichiers" Binding="{Binding FileCount}" Width="120" />
+                            <DataGridTextColumn Header="Taille" Binding="{Binding Size}" Width="150" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <TabItem Header="Plus gros éléments">
+                    <Grid ColumnDefinitions="*,*">
+                        <DataGrid Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding LargestFolderRows}" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Dossier le plus volumineux" Binding="{Binding RelativePath}" Width="3*" />
+                                <DataGridTextColumn Header="Taille" Binding="{Binding Size}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <DataGrid Grid.Column="1" Margin="4,0,0,0" ItemsSource="{Binding LargestFileRows}" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Fichier le plus volumineux" Binding="{Binding RelativePath}" Width="3*" />
+                                <DataGridTextColumn Header="Taille" Binding="{Binding Size}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Fichiers anciens">
+                    <DataGrid ItemsSource="{Binding OldFileRows}" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Chemin" Binding="{Binding RelativePath}" Width="3*" />
+                            <DataGridTextColumn Header="Dernière modification" Binding="{Binding LastModified}" Width="160" />
+                            <DataGridTextColumn Header="Taille" Binding="{Binding Size}" Width="120" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <TabItem Header="Doublons">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8" Spacing="12">
+                            <Button Content="Rechercher les doublons" Command="{Binding FindDuplicatesCommand}" />
+                            <TextBlock Text="{Binding DuplicateSummary}" VerticalAlignment="Center" Foreground="#555555" />
+                        </StackPanel>
+                        <DataGrid ItemsSource="{Binding DuplicateRows}" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Groupe" Binding="{Binding Groupe}" Width="80" />
+                                <DataGridTextColumn Header="Chemin" Binding="{Binding RelativePath}" Width="4*" />
+                                <DataGridTextColumn Header="Taille" Binding="{Binding Size}" Width="120" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </TabItem>
+
+                <TabItem Header="Dossiers vides">
+                    <DataGrid ItemsSource="{Binding EmptyFolderRows}" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Chemin" Binding="{Binding RelativePath}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <TabItem Header="Droits d'accès">
+                    <DataGrid ItemsSource="{Binding PermissionFindings}" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Sévérité" Binding="{Binding Severity}" Width="90" />
+                            <DataGridTextColumn Header="Catégorie" Binding="{Binding Category}" Width="150" />
+                            <DataGridTextColumn Header="Chemin" Binding="{Binding RelativePath}" Width="3*" />
+                            <DataGridTextColumn Header="Identité" Binding="{Binding IdentityName}" Width="160" />
+                            <DataGridTextColumn Header="Droits" Binding="{Binding Rights}" Width="160" />
+                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="4*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <TabItem Header="Journal">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8" Spacing="12">
+                            <Button Content="Exporter les logs..." Click="ExportLogs_Click" />
+                            <Button Content="Ouvrir le dossier des logs" Click="OpenLogsFolder_Click" />
+                            <TextBlock Text="{Binding LogFilePath}" VerticalAlignment="Center" Foreground="#555555" />
+                        </StackPanel>
+                        <DataGrid ItemsSource="{Binding LogRows}" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Heure" Binding="{Binding Time}" Width="90" />
+                                <DataGridTextColumn Header="Niveau" Binding="{Binding Level}" Width="90" />
+                                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="140" />
+                                <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="4*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </TabItem>
+            </TabControl>
+
+            <TextBlock Grid.Row="5" Text="{Binding StatusText}" Margin="0,8,0,0" Foreground="#333333" />
+        </Grid>
+    </DockPanel>
+</Window>
