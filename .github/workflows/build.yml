@@ -64,4 +64,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AGY-Size-installer
-          path: installer/bin/Release/*.msi
+          # Platform=x64 (voir AgySize.Installer.wixproj) place la sortie dans bin/x64/Release/ ;
+          # le glob couvre aussi bin/Release/ au cas où la structure de sortie changerait.
+          path: installer/bin/**/*.msi
