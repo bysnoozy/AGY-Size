@@ -40,6 +40,7 @@ public static class PermissionsAnalyzer
     public static IReadOnlyList<PermissionFinding> AnalyzeFolder(FileSystemNode node)
     {
         var findings = new List<PermissionFinding>();
+        var displayPath = node.RelativePath.Length == 0 ? "(racine)" : node.RelativePath;
 
         try
         {
@@ -47,12 +48,28 @@ public static class PermissionsAnalyzer
 
             var owner = security.GetOwner(typeof(NTAccount));
             node.OwnerName = owner?.Value;
+            var inheritanceBroken = security.AreAccessRulesProtected;
 
-            if (security.AreAccessRulesProtected)
+            // Toujours un constat de base, même sans anomalie : sans cette ligne, un dossier aux
+            // permissions saines ne produit rien et l'onglet "Droits d'accès" paraît vide/en panne
+            // alors que l'analyse a bien tourné.
+            findings.Add(new PermissionFinding
+            {
+                RelativePath = displayPath,
+                Kind = FileSystemNodeKind.Folder,
+                Severity = PermissionSeverity.Info,
+                Category = PermissionFindingCategory.OwnerInfo,
+                IdentityName = owner?.Value,
+                Description = inheritanceBroken
+                    ? "Héritage désactivé sur ce dossier (voir le constat détaillé ci-dessous)."
+                    : "Aucune anomalie détectée (héritage actif, pas d'ACL étendue ni de refus explicite).",
+            });
+
+            if (inheritanceBroken)
             {
                 findings.Add(new PermissionFinding
                 {
-                    RelativePath = node.RelativePath,
+                    RelativePath = displayPath,
                     Kind = FileSystemNodeKind.Folder,
                     Severity = PermissionSeverity.Warning,
                     Category = PermissionFindingCategory.BrokenInheritance,
@@ -70,7 +87,7 @@ public static class PermissionsAnalyzer
                 {
                     findings.Add(new PermissionFinding
                     {
-                        RelativePath = node.RelativePath,
+                        RelativePath = displayPath,
                         Kind = FileSystemNodeKind.Folder,
                         Severity = PermissionSeverity.Info,
                         Category = PermissionFindingCategory.ExplicitDeny,
@@ -89,7 +106,7 @@ public static class PermissionsAnalyzer
                 {
                     findings.Add(new PermissionFinding
                     {
-                        RelativePath = node.RelativePath,
+                        RelativePath = displayPath,
                         Kind = FileSystemNodeKind.Folder,
                         Severity = PermissionSeverity.Critical,
                         Category = PermissionFindingCategory.BroadGrant,
@@ -105,7 +122,7 @@ public static class PermissionsAnalyzer
         {
             findings.Add(new PermissionFinding
             {
-                RelativePath = node.RelativePath,
+                RelativePath = displayPath,
                 Kind = FileSystemNodeKind.Folder,
                 Severity = PermissionSeverity.Warning,
                 Category = PermissionFindingCategory.AnalysisError,
