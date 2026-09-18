@@ -81,14 +81,16 @@ dotnet publish src/AgySize.App/AgySize.App.csproj -c Release -r win-x64 --self-c
 
 ## Mode installation
 
-Deux options, en fonction de ce qui a pu être validé (voir `installer/README.md`) :
+Binaires Windows prêts à l'emploi, directement dans le dépôt : voir `releases/` (`AGY-Size-Setup.msi`
+pour une installation classique, ou `AGY-Size-portable-win-x64.zip` pour l'exécutable autonome sans
+installation). Voir `releases/README.md` pour savoir comment les régénérer.
 
-- **Mode `.exe`** (disponible dès maintenant) : exécutable Windows autonome, publié automatiquement
-  par la CI (`publish-windows`) — aucune installation requise, il suffit de le lancer. Le démarrage
-  automatique se règle ensuite depuis l'application (case à cocher "Démarrer avec Windows").
-- **Mode `.msi`** (expérimental) : installeur WiX v4 qui copie l'application, crée un raccourci menu
-  Démarrer et active le démarrage automatique. Construit par le job CI `build-installer`, à valider
-  sur un poste Windows avant diffusion.
+Ces mêmes binaires sont aussi (re)construits à chaque push sur `main` par la CI, sans être committés :
+- **Mode `.exe`** : artefact `AGY-Size-win-x64` du job `publish-windows`.
+- **Mode `.msi`** : artefact `AGY-Size-installer` du job `build-installer`.
+
+Dans les deux cas, le démarrage automatique avec Windows est activable depuis l'application (case à
+cocher "Démarrer avec Windows"), en plus de celui déjà configuré par l'installeur `.msi`.
 
 ## Intégration continue
 

@@ -1,0 +1,61 @@
+name: Publish release binaries to repo
+
+# Déclenchement manuel uniquement (onglet Actions -> "Run workflow") : on ne veut pas qu'un commit
+# binaire de ~100 Mo soit ajouté au dépôt à chaque push pendant le développement. À lancer quand une
+# version stable doit être rendue disponible directement depuis le projet (dossier releases/).
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build and commit release binaries
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish AgySize.App (exécutable autonome)
+        run: dotnet publish src/AgySize.App/AgySize.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-x64
+
+      - name: Publish AgySize.Cli (pour les scans planifiés)
+        run: dotnet publish src/AgySize.Cli/AgySize.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-x64
+
+      - name: Publish app for installer (dossier non compressé)
+        run: dotnet publish src/AgySize.App/AgySize.App.csproj -c Release -r win-x64 --self-contained true -o installer/publish
+
+      - name: Install WiX toolset
+        run: dotnet tool install --global wix --version 4.0.5
+
+      - name: Add WiX UI extension
+        run: wix extension add WixToolset.UI.wixext/4.0.5
+
+      - name: Build MSI
+        run: dotnet build AgySize.Installer.wixproj -c Release -p:PublishDir=publish
+        working-directory: installer
+
+      - name: Assemble releases folder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path releases | Out-Null
+          Compress-Archive -Path publish/win-x64/* -DestinationPath releases/AGY-Size-portable-win-x64.zip -Force
+          $msi = Get-ChildItem -Path installer/bin -Filter *.msi -Recurse | Select-Object -First 1
+          Copy-Item $msi.FullName -Destination releases/AGY-Size-Setup.msi -Force
+
+      - name: Commit and push release binaries
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add releases/AGY-Size-Setup.msi releases/AGY-Size-portable-win-x64.zip
+          if git diff --cached --quiet; then
+            echo "Aucun changement binaire à commiter."
+          else
+            git commit -m "chore: update release binaries (built from ${{ github.sha }}) [skip ci]"
+            git push
+          fi
