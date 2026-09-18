@@ -1,26 +1,18 @@
 # Assets AGY-Size
 
-Déposez ici le logo AGYTEK :
+- `agytek-logo.png` : logo AGYTEK original (dégradé bleu → gris), fourni par l'utilisateur.
+- `logo.png` : même logo, recadré au plus près (fond transparent) — copié dans
+  `src/AgySize.App/Assets/logo.png` pour le bandeau d'en-tête de l'application.
+- `logo.ico` : icône carrée multi-résolutions (16/24/32/48/64/128/256 px) générée à partir du logo
+  (wordmark centré sur fond bleu nuit `#1B3A63`, cohérent avec le bandeau d'en-tête) — copiée dans
+  `src/AgySize.App/Assets/logo.ico` pour l'icône de l'exécutable et de la fenêtre.
 
-- `logo.png` — utilisé dans l'en-tête de la fenêtre principale (bandeau gris/bleu).
-- `logo.ico` — icône de l'exécutable Windows et de la fenêtre (multi-résolutions : 16/32/48/256 px).
+Le logo est déjà branché dans l'application :
+- `src/AgySize.App/AgySize.App.csproj` référence `Assets\logo.ico` comme `ApplicationIcon` et déclare
+  les deux fichiers comme `AvaloniaResource`.
+- `src/AgySize.App/MainWindow.axaml` utilise `avares://AgySize.App/Assets/logo.ico` comme icône de
+  fenêtre et affiche `avares://AgySize.App/Assets/logo.png` dans le bandeau d'en-tête.
 
-Une fois les fichiers ajoutés :
-
-1. Dans `src/AgySize.App/AgySize.App.csproj`, décommentez :
-   ```xml
-   <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
-   ```
-2. Dans `src/AgySize.App/Views/MainWindow.axaml`, décommentez la balise `Icon="avares://AgySize.App/Assets/logo.ico"`
-   sur l'élément `<Window>`, et l'`<Image Source="avares://AgySize.App/Assets/logo.png">` du bandeau d'en-tête
-   (repérable par le commentaire `<!-- Logo AGYTEK -->`).
-3. Ajoutez les fichiers en tant que ressource Avalonia dans `AgySize.App.csproj` :
-   ```xml
-   <ItemGroup>
-     <AvaloniaResource Include="Assets\logo.png" />
-     <AvaloniaResource Include="Assets\logo.ico" />
-   </ItemGroup>
-   ```
-
-Ces étapes sont volontairement laissées en commentaire tant que les fichiers n'existent pas, pour ne
-pas casser la compilation.
+Pour remplacer le logo plus tard : déposer un nouveau fichier ici, régénérer `logo.ico`/`logo.png` si
+besoin (un simple recadrage/export suffit), puis copier les deux fichiers dans
+`src/AgySize.App/Assets/` en écrasant les existants.

@@ -9,9 +9,7 @@
     <AssemblyName>AgySize.App</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <LangVersion>latest</LangVersion>
-    <!-- Une fois le logo ajouté dans assets/ (voir assets/README.md), décommenter la ligne suivante
-         pour l'utiliser comme icône de l'exécutable Windows. -->
-    <!-- <ApplicationIcon>Assets\logo.ico</ApplicationIcon> -->
+    <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,6 +22,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AgySize.Core\AgySize.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\logo.png" />
+    <AvaloniaResource Include="Assets\logo.ico" />
   </ItemGroup>
 
 </Project>

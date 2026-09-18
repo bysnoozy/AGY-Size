@@ -3,14 +3,13 @@
         xmlns:controls="using:AgySize.App.Views.Controls"
         x:Class="AgySize.App.MainWindow"
         Title="AGY-Size — Espace disque, droits et journal"
+        Icon="avares://AgySize.App/Assets/logo.ico"
         Width="1280" Height="800" MinWidth="960" MinHeight="600"
         Background="#F4F6F9">
-    <!-- Icon="avares://AgySize.App/Assets/logo.ico" : décommenter une fois le logo ajouté (voir assets/README.md) -->
     <DockPanel>
         <Border DockPanel.Dock="Top" Background="#1B3A63" Padding="16,10">
             <StackPanel Orientation="Horizontal" Spacing="10">
-                <!-- Logo AGYTEK : décommenter une fois assets/logo.png ajouté (voir assets/README.md)
-                <Image Source="avares://AgySize.App/Assets/logo.png" Height="28" /> -->
+                <Image Source="avares://AgySize.App/Assets/logo.png" Height="28" />
                 <TextBlock Text="AGY-Size" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" />
                 <TextBlock Text="Espace disque · Droits d'accès · Journal" FontSize="13" Foreground="#B9C6DA" VerticalAlignment="Center" />
             </StackPanel>
