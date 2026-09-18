@@ -75,7 +75,8 @@
 
             <TabControl Grid.Row="4">
                 <TabItem Header="Arborescence">
-                    <TreeView ItemsSource="{Binding TreeRoots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
+                    <TreeView x:Name="Tree" ItemsSource="{Binding TreeRoots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
+                              SelectionMode="Multiple">
                         <TreeView.ItemTemplate>
                             <TreeDataTemplate ItemsSource="{Binding Children}">
                                 <Grid ColumnDefinitions="*,140,70,110" Margin="0,2">

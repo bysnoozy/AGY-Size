@@ -97,33 +97,64 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Sélection actuelle de l'arborescence, réduite aux éléments "racine" de la sélection : si un
+    /// dossier et l'un de ses descendants sont sélectionnés ensemble, seul le dossier est conservé
+    /// (le supprimer/déplacer traite déjà tout son contenu).
+    /// </summary>
+    private List<FileSystemNodeViewModel> GetTopLevelSelection()
+    {
+        var selected = new HashSet<FileSystemNodeViewModel>(Tree.SelectedItems.Cast<FileSystemNodeViewModel>());
+
+        return selected.Where(node =>
+        {
+            var parent = node.Parent;
+            while (parent is not null)
+            {
+                if (selected.Contains(parent))
+                {
+                    return false;
+                }
+
+                parent = parent.Parent;
+            }
+
+            return true;
+        }).ToList();
+    }
+
     private async void DeleteSelected_Click(object? sender, RoutedEventArgs e)
     {
-        var node = ViewModel.SelectedNode;
-        if (node is null)
+        var nodes = GetTopLevelSelection();
+        if (nodes.Count == 0)
         {
-            ViewModel.StatusText = "Sélectionnez d'abord un élément dans l'arborescence.";
+            ViewModel.StatusText = "Sélectionnez d'abord un ou plusieurs éléments dans l'arborescence.";
             return;
         }
 
-        var confirmed = await ConfirmDialog.ShowAsync(
-            this,
-            "Confirmer la suppression",
-            $"Supprimer « {node.RelativePath} » ({node.SizeDisplay}) ? " +
-            "L'élément sera envoyé à la corbeille si possible.");
+        var message = nodes.Count == 1
+            ? $"Supprimer « {nodes[0].RelativePath} » ({nodes[0].SizeDisplay}) ? " +
+              "L'élément sera envoyé à la corbeille si possible."
+            : $"Supprimer les {nodes.Count} éléments sélectionnés ? " +
+              "Ils seront envoyés à la corbeille si possible.";
+
+        var confirmed = await ConfirmDialog.ShowAsync(this, "Confirmer la suppression", message);
 
         if (confirmed)
         {
-            ViewModel.ApplyDelete(node, useRecycleBin: true);
+            foreach (var node in nodes)
+            {
+                ViewModel.ApplyDelete(node, useRecycleBin: true);
+            }
         }
     }
 
     private async void MoveSelected_Click(object? sender, RoutedEventArgs e)
     {
-        var node = ViewModel.SelectedNode;
-        if (node is null)
+        var nodes = GetTopLevelSelection();
+        if (nodes.Count == 0)
         {
-            ViewModel.StatusText = "Sélectionnez d'abord un élément dans l'arborescence.";
+            ViewModel.StatusText = "Sélectionnez d'abord un ou plusieurs éléments dans l'arborescence.";
             return;
         }
 
@@ -141,7 +172,11 @@ public partial class MainWindow : Window
 
         if (folders.Count > 0)
         {
-            ViewModel.ApplyMove(node, folders[0].Path.LocalPath);
+            var destination = folders[0].Path.LocalPath;
+            foreach (var node in nodes)
+            {
+                ViewModel.ApplyMove(node, destination);
+            }
         }
     }
 

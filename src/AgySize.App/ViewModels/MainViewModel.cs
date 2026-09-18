@@ -323,9 +323,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             StatusText = "Analyse annulée.";
         }
-        catch (Exception ex) when (ex is DirectoryNotFoundException or UnauthorizedAccessException or IOException)
+        catch (Exception ex)
         {
+            // Catch-all volontaire : cette méthode est appelée depuis une commande "async void"
+            // (RelayCommand ne peut pas exposer de Task) — une exception non rattrapée ici ferait
+            // planter toute l'application au lieu de simplement afficher une erreur.
             StatusText = $"Erreur : {ex.Message}";
+            _logger.Error("Scanner", $"Analyse interrompue par une erreur inattendue : {ex}");
         }
         finally
         {
@@ -447,6 +451,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
             StatusText = "Recherche de doublons terminée.";
             _logger.Info("Doublons", DuplicateSummary);
         }
+        catch (Exception ex)
+        {
+            // Catch-all volontaire, même raison que dans StartScanAsync : commande "async void".
+            StatusText = $"Erreur pendant la recherche de doublons : {ex.Message}";
+            _logger.Error("Doublons", $"Recherche interrompue par une erreur inattendue : {ex}");
+        }
         finally
         {
             IsFindingDuplicates = false;
@@ -483,10 +493,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
             StatusText = $"Supprimé : {node.RelativePath}";
             _logger.Info("Suppression", $"'{node.Model.FullPath}' supprimé ({(useRecycleBin ? "corbeille" : "définitif")}).");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex)
         {
             StatusText = $"Suppression impossible : {ex.Message}";
-            _logger.Error("Suppression", $"Échec sur '{node.RelativePath}' : {ex.Message}");
+            _logger.Error("Suppression", $"Échec sur '{node.RelativePath}' : {ex}");
         }
     }
 
@@ -501,10 +511,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
             StatusText = $"Déplacé vers : {destinationDirectory}";
             _logger.Info("Déplacement", $"'{node.RelativePath}' déplacé vers '{destinationDirectory}'.");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex)
         {
             StatusText = $"Déplacement impossible : {ex.Message}";
-            _logger.Error("Déplacement", $"Échec sur '{node.RelativePath}' : {ex.Message}");
+            _logger.Error("Déplacement", $"Échec sur '{node.RelativePath}' : {ex}");
         }
     }
 

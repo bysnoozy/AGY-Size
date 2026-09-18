@@ -110,3 +110,6 @@ cocher "Démarrer avec Windows"), en plus de celui déjà configuré par l'insta
 - La planification de scans nécessite que `AgySize.Cli.exe` soit publié à côté de l'application.
 - Pas d'agent/service en tâche de fond pour l'instant : AGY-Size est une application de bureau
   classique (avec démarrage automatique optionnel). Un agent est envisagé pour une itération future.
+- Si l'application se ferme de façon inattendue (plantage), un fichier
+  `%LocalAppData%\AGY-Size\logs\crash.log` est créé avec le détail de l'exception : à joindre en cas
+  de rapport de bug, en plus du journal normal (`agysize.log` dans le même dossier).

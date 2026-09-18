@@ -118,8 +118,12 @@ public static class PermissionsAnalyzer
                 }
             }
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or InvalidOperationException)
+        catch (Exception ex)
         {
+            // Catch-all volontaire : c'est un appel à une API Windows (ACL NTFS) dont le
+            // comportement d'erreur exact n'est pas garanti (Win32Exception, SecurityException,
+            // COMException...). Une exception non prévue ici ne doit jamais faire planter tout le
+            // scan — elle doit juste se traduire par un constat "analyse impossible".
             findings.Add(new PermissionFinding
             {
                 RelativePath = displayPath,
