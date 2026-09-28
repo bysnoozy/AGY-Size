@@ -19,6 +19,7 @@ public sealed class LargestItemRow
     public required string RelativePath { get; init; }
     public required string Kind { get; init; }
     public required string Size { get; init; }
+    public required long SizeInBytes { get; init; }
     public required FileSystemNodeViewModel Node { get; init; }
 }
 
@@ -26,7 +27,9 @@ public sealed class OldFileRow
 {
     public required string RelativePath { get; init; }
     public required string LastModified { get; init; }
+    public required DateTime LastModifiedUtc { get; init; }
     public required string Size { get; init; }
+    public required long SizeInBytes { get; init; }
     public required FileSystemNodeViewModel Node { get; init; }
 }
 
@@ -41,6 +44,7 @@ public sealed class DuplicateRow
     public required string Groupe { get; init; }
     public required string RelativePath { get; init; }
     public required string Size { get; init; }
+    public required long SizeInBytes { get; init; }
     public required FileSystemNodeViewModel Node { get; init; }
 }
 

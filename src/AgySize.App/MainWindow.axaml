@@ -130,7 +130,7 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Extension" Binding="{Binding Extension}" Width="150" />
                             <DataGridTextColumn Header="Fichiers" Binding="{Binding FileCount}" Width="120" />
-                            <DataGridTextColumn Header="Taille" Binding="{Binding Size}" Width="150" />
+                            <DataGridTextColumn Header="Taille" Binding="{Binding Size}" SortMemberPath="SizeInBytes" Width="150" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </TabItem>
@@ -151,7 +151,7 @@
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Dossier le plus volumineux" Binding="{Binding RelativePath}" Width="3*" />
-                                <DataGridTextColumn Header="Taille" Binding="{Binding Size}" Width="*" />
+                                <DataGridTextColumn Header="Taille" Binding="{Binding Size}" SortMemberPath="SizeInBytes" Width="*" />
                             </DataGrid.Columns>
                         </DataGrid>
                         <DataGrid x:Name="LargestFileGrid" Grid.Column="1" Margin="4,0,0,0" ItemsSource="{Binding LargestFileRows}"
@@ -168,7 +168,7 @@
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Fichier le plus volumineux" Binding="{Binding RelativePath}" Width="3*" />
-                                <DataGridTextColumn Header="Taille" Binding="{Binding Size}" Width="*" />
+                                <DataGridTextColumn Header="Taille" Binding="{Binding Size}" SortMemberPath="SizeInBytes" Width="*" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>
@@ -189,8 +189,8 @@
                         </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Chemin" Binding="{Binding RelativePath}" Width="3*" />
-                            <DataGridTextColumn Header="Dernière modification" Binding="{Binding LastModified}" Width="160" />
-                            <DataGridTextColumn Header="Taille" Binding="{Binding Size}" Width="120" />
+                            <DataGridTextColumn Header="Dernière modification" Binding="{Binding LastModified}" SortMemberPath="LastModifiedUtc" Width="160" />
+                            <DataGridTextColumn Header="Taille" Binding="{Binding Size}" SortMemberPath="SizeInBytes" Width="120" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </TabItem>
@@ -216,7 +216,7 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Groupe" Binding="{Binding Groupe}" Width="80" />
                                 <DataGridTextColumn Header="Chemin" Binding="{Binding RelativePath}" Width="4*" />
-                                <DataGridTextColumn Header="Taille" Binding="{Binding Size}" Width="120" />
+                                <DataGridTextColumn Header="Taille" Binding="{Binding Size}" SortMemberPath="SizeInBytes" Width="120" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </DockPanel>

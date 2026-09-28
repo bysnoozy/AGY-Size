@@ -40,7 +40,10 @@ scanner de tailles/droits/logs d'origine, et l'audit de migration SharePoint du 
 - **Plus gros dossiers / fichiers** de l'arborescence analysée.
 - **Fichiers anciens** : fichiers non modifiés depuis plus d'un an (seuil configurable).
 - **Dossiers vides**.
-- **Recherche de doublons** (à la demande) : regroupement par taille puis hachage SHA-256.
+- **Recherche de doublons** (à la demande) : regroupement par taille, puis hachage partiel (64
+  premiers Ko, pour écarter à moindre coût les fichiers qui partagent une taille par coïncidence)
+  et enfin hachage SHA-256 complet, ces deux étapes de hachage étant menées en parallèle sur
+  plusieurs fichiers à la fois ; progression affichée en direct pendant la recherche.
 - **Suppression / déplacement** de fichiers ou dossiers directement depuis l'arborescence (corbeille
   Windows quand c'est possible), avec mise à jour immédiate des tailles affichées.
 - **Revue des droits d'accès NTFS** (Windows, activable via une case à cocher — plus lent) :

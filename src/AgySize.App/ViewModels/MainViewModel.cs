@@ -447,6 +447,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 RelativePath = folder.RelativePath,
                 Kind = "Dossier",
                 Size = FormatBytes(folder.SizeInBytes),
+                SizeInBytes = folder.SizeInBytes,
                 Node = new FileSystemNodeViewModel(folder, result.RootNode.SizeInBytes),
             });
         }
@@ -458,6 +459,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 RelativePath = file.RelativePath,
                 Kind = "Fichier",
                 Size = FormatBytes(file.SizeInBytes),
+                SizeInBytes = file.SizeInBytes,
                 Node = new FileSystemNodeViewModel(file, result.RootNode.SizeInBytes),
             });
         }
@@ -469,7 +471,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
             {
                 RelativePath = file.RelativePath,
                 LastModified = file.LastWriteUtc.ToLocalTime().ToString("yyyy-MM-dd"),
+                LastModifiedUtc = file.LastWriteUtc,
                 Size = FormatBytes(file.SizeInBytes),
+                SizeInBytes = file.SizeInBytes,
                 Node = new FileSystemNodeViewModel(file, result.RootNode.SizeInBytes),
             });
         }
@@ -641,10 +645,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
         IsFindingDuplicates = true;
         DuplicateRows.Clear();
         StatusText = "Recherche de doublons en cours...";
+        ProgressText = string.Empty;
 
         try
         {
-            var groups = await Task.Run(() => DuplicateFinder.FindDuplicates(LastResult.RootNode, _logger));
+            var progress = new Progress<DuplicateScanProgress>(p =>
+            {
+                ProgressText = $"{p.FilesHashed:N0} / {p.TotalFiles:N0} fichiers comparés";
+            });
+
+            var groups = await Task.Run(() => DuplicateFinder.FindDuplicates(LastResult.RootNode, _logger, progress));
 
             var groupIndex = 0;
             long wastedTotal = 0;
@@ -659,6 +669,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                         Groupe = $"#{groupIndex}",
                         RelativePath = file.RelativePath,
                         Size = FormatBytes(file.SizeInBytes),
+                        SizeInBytes = file.SizeInBytes,
                         Node = new FileSystemNodeViewModel(file, LastResult.RootNode.SizeInBytes),
                     });
                 }
@@ -679,6 +690,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         finally
         {
             IsFindingDuplicates = false;
+            ProgressText = string.Empty;
         }
     }
 
