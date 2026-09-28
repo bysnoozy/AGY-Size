@@ -29,6 +29,18 @@ jobs:
       - name: Publish app for installer (dossier non compressé)
         run: dotnet publish src/AgySize.App/AgySize.App.csproj -c Release -r win-x64 --self-contained true -o installer/publish
 
+      - name: Sign binaries (si le certificat AGYTEK est configuré)
+        if: ${{ secrets.CODE_SIGNING_PFX_BASE64 != '' }}
+        shell: pwsh
+        env:
+          CODE_SIGNING_PFX_BASE64: ${{ secrets.CODE_SIGNING_PFX_BASE64 }}
+          CODE_SIGNING_PASSWORD: ${{ secrets.CODE_SIGNING_PASSWORD }}
+        run: |
+          ./scripts/Sign-Binaries.ps1 -Path `
+            "publish/win-x64/AgySize.App.exe", `
+            "publish/win-x64/AgySize.Cli.exe", `
+            "installer/publish/AgySize.App.exe"
+
       - name: Install WiX toolset
         run: dotnet tool install --global wix --version 4.0.5
 
@@ -38,6 +50,16 @@ jobs:
       - name: Build MSI
         run: dotnet build AgySize.Installer.wixproj -c Release -p:PublishDir=publish
         working-directory: installer
+
+      - name: Sign MSI (si le certificat AGYTEK est configuré)
+        if: ${{ secrets.CODE_SIGNING_PFX_BASE64 != '' }}
+        shell: pwsh
+        env:
+          CODE_SIGNING_PFX_BASE64: ${{ secrets.CODE_SIGNING_PFX_BASE64 }}
+          CODE_SIGNING_PASSWORD: ${{ secrets.CODE_SIGNING_PASSWORD }}
+        run: |
+          $msi = Get-ChildItem -Path installer/bin -Filter *.msi -Recurse | Select-Object -First 1
+          ./scripts/Sign-Binaries.ps1 -Path $msi.FullName
 
       - name: Assemble releases folder
         shell: pwsh

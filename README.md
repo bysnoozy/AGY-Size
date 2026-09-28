@@ -109,6 +109,12 @@ Ces mêmes binaires sont aussi (re)construits à chaque push sur `main` par la C
 Dans les deux cas, le démarrage automatique avec Windows est activable depuis l'application (case à
 cocher "Démarrer avec Windows"), en plus de celui déjà configuré par l'installeur `.msi`.
 
+### Signature des binaires
+
+Les exécutables et l'installeur sont signés (Authenticode) avec un certificat **auto-signé AGYTEK**,
+pour un usage interne. Voir [`docs/CODE_SIGNING.md`](docs/CODE_SIGNING.md) pour la mise en place des
+secrets CI et l'installation du certificat de confiance sur les postes AGYTEK.
+
 ## Intégration continue
 
 `.github/workflows/build.yml` :
