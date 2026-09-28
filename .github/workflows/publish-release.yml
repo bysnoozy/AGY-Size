@@ -13,6 +13,9 @@ jobs:
   publish:
     name: Build and commit release binaries
     runs-on: windows-latest
+    env:
+      CODE_SIGNING_PFX_BASE64: ${{ secrets.CODE_SIGNING_PFX_BASE64 }}
+      CODE_SIGNING_PASSWORD: ${{ secrets.CODE_SIGNING_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -30,11 +33,10 @@ jobs:
         run: dotnet publish src/AgySize.App/AgySize.App.csproj -c Release -r win-x64 --self-contained true -o installer/publish
 
       - name: Sign binaries (si le certificat AGYTEK est configuré)
-        if: ${{ secrets.CODE_SIGNING_PFX_BASE64 != '' }}
+        # Une condition if: ne peut pas référencer le contexte "secrets" directement (limitation
+        # GitHub Actions) : on passe par la variable d'environnement définie au niveau du job.
+        if: ${{ env.CODE_SIGNING_PFX_BASE64 != '' }}
         shell: pwsh
-        env:
-          CODE_SIGNING_PFX_BASE64: ${{ secrets.CODE_SIGNING_PFX_BASE64 }}
-          CODE_SIGNING_PASSWORD: ${{ secrets.CODE_SIGNING_PASSWORD }}
         run: |
           ./scripts/Sign-Binaries.ps1 -Path `
             "publish/win-x64/AgySize.App.exe", `
@@ -52,11 +54,8 @@ jobs:
         working-directory: installer
 
       - name: Sign MSI (si le certificat AGYTEK est configuré)
-        if: ${{ secrets.CODE_SIGNING_PFX_BASE64 != '' }}
+        if: ${{ env.CODE_SIGNING_PFX_BASE64 != '' }}
         shell: pwsh
-        env:
-          CODE_SIGNING_PFX_BASE64: ${{ secrets.CODE_SIGNING_PFX_BASE64 }}
-          CODE_SIGNING_PASSWORD: ${{ secrets.CODE_SIGNING_PASSWORD }}
         run: |
           $msi = Get-ChildItem -Path installer/bin -Filter *.msi -Recurse | Select-Object -First 1
           ./scripts/Sign-Binaries.ps1 -Path $msi.FullName
