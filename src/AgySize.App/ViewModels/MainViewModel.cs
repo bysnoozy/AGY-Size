@@ -457,6 +457,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                         Groupe = $"#{groupIndex}",
                         RelativePath = file.RelativePath,
                         Size = FormatBytes(file.SizeInBytes),
+                        Node = new FileSystemNodeViewModel(file, LastResult.RootNode.SizeInBytes),
                     });
                 }
             }

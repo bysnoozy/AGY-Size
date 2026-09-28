@@ -5,19 +5,163 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using AgySize.App.ViewModels;
 using AgySize.App.Views;
+using AgySize.Core.Models;
 using AgySize.Core.Reporting;
 
 namespace AgySize.App;
 
 public partial class MainWindow : Window
 {
+    /// <summary>
+    /// Élément visé par le menu contextuel actuellement ouvert : un chemin complet résolu (pour
+    /// "Ouvrir"/"Ouvrir l'emplacement"/"Copier le chemin", disponibles partout) et, quand la ligne
+    /// correspond à un nœud réel de l'arborescence scannée, le nœud lui-même (nécessaire pour
+    /// "Supprimer"/"Déplacer", qui mettent à jour les tailles agrégées).
+    /// </summary>
+    private sealed record ContextTarget(string FullPath, FileSystemNodeViewModel? Node);
+
+    private Func<List<ContextTarget>> _contextSelectionProvider = () => new();
+
     public MainWindow()
     {
         InitializeComponent();
         Treemap.NodeClicked += (_, node) => ViewModel.NavigateTreemap(node);
+
+        Tree.ContextRequested += (_, _) => _contextSelectionProvider = () =>
+            GetTopLevelSelection().Select(n => new ContextTarget(n.Model.FullPath, n)).ToList();
+
+        LargestFolderGrid.ContextRequested += (_, _) => _contextSelectionProvider = () =>
+            LargestFolderGrid.SelectedItems.Cast<LargestItemRow>()
+                .Select(r => new ContextTarget(r.Node.Model.FullPath, r.Node)).ToList();
+
+        LargestFileGrid.ContextRequested += (_, _) => _contextSelectionProvider = () =>
+            LargestFileGrid.SelectedItems.Cast<LargestItemRow>()
+                .Select(r => new ContextTarget(r.Node.Model.FullPath, r.Node)).ToList();
+
+        OldFileGrid.ContextRequested += (_, _) => _contextSelectionProvider = () =>
+            OldFileGrid.SelectedItems.Cast<OldFileRow>()
+                .Select(r => new ContextTarget(r.Node.Model.FullPath, r.Node)).ToList();
+
+        EmptyFolderGrid.ContextRequested += (_, _) => _contextSelectionProvider = () =>
+            EmptyFolderGrid.SelectedItems.Cast<EmptyFolderRow>()
+                .Select(r => new ContextTarget(r.Node.Model.FullPath, r.Node)).ToList();
+
+        DuplicateGrid.ContextRequested += (_, _) => _contextSelectionProvider = () =>
+            DuplicateGrid.SelectedItems.Cast<DuplicateRow>()
+                .Select(r => new ContextTarget(r.Node.Model.FullPath, r.Node)).ToList();
+
+        AuditGrid.ContextRequested += (_, _) => _contextSelectionProvider = () =>
+            AuditGrid.SelectedItems.Cast<AuditIssue>()
+                .Select(i => new ContextTarget(ResolveFullPath(i.RelativePath), null)).ToList();
+
+        PermissionsGrid.ContextRequested += (_, _) => _contextSelectionProvider = () =>
+            PermissionsGrid.SelectedItems.Cast<PermissionFinding>()
+                .Select(f => new ContextTarget(ResolveFullPath(f.RelativePath), null)).ToList();
     }
 
     private MainViewModel ViewModel => (MainViewModel)DataContext!;
+
+    /// <summary>Reconstitue le chemin complet d'une ligne qui ne référence qu'un chemin relatif (audit, droits).</summary>
+    private string ResolveFullPath(string relativePath)
+    {
+        var root = ViewModel.RootPath;
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            return relativePath;
+        }
+
+        return relativePath.Length == 0 || relativePath == "(racine)"
+            ? root
+            : Path.Combine(root, relativePath);
+    }
+
+    private void OpenPath(string fullPath)
+    {
+        try
+        {
+            if (Directory.Exists(fullPath) || File.Exists(fullPath))
+            {
+                Process.Start(new ProcessStartInfo { FileName = fullPath, UseShellExecute = true });
+            }
+            else
+            {
+                ViewModel.StatusText = $"Introuvable sur le disque : {fullPath}";
+            }
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
+        {
+            ViewModel.StatusText = $"Impossible d'ouvrir : {ex.Message}";
+        }
+    }
+
+    private void OpenContainingFolder(string fullPath)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows() && File.Exists(fullPath))
+            {
+                var psi = new ProcessStartInfo("explorer.exe") { UseShellExecute = true };
+                psi.ArgumentList.Add($"/select,{fullPath}");
+                Process.Start(psi);
+                return;
+            }
+
+            var directory = Directory.Exists(fullPath) ? fullPath : Path.GetDirectoryName(fullPath);
+            if (directory is null || !Directory.Exists(directory))
+            {
+                ViewModel.StatusText = $"Dossier introuvable pour : {fullPath}";
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo { FileName = directory, UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
+        {
+            ViewModel.StatusText = $"Impossible d'ouvrir l'emplacement : {ex.Message}";
+        }
+    }
+
+    private void ContextOpen_Click(object? sender, RoutedEventArgs e)
+    {
+        foreach (var target in _contextSelectionProvider())
+        {
+            OpenPath(target.FullPath);
+        }
+    }
+
+    private void ContextOpenLocation_Click(object? sender, RoutedEventArgs e)
+    {
+        foreach (var target in _contextSelectionProvider())
+        {
+            OpenContainingFolder(target.FullPath);
+        }
+    }
+
+    private async void ContextCopyPath_Click(object? sender, RoutedEventArgs e)
+    {
+        var targets = _contextSelectionProvider();
+        if (targets.Count == 0)
+        {
+            return;
+        }
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        var clipboard = topLevel?.Clipboard;
+        if (clipboard is null)
+        {
+            return;
+        }
+
+        var text = string.Join(Environment.NewLine, targets.Select(t => t.FullPath));
+        await clipboard.SetTextAsync(text);
+        ViewModel.StatusText = targets.Count == 1 ? $"Chemin copié : {text}" : $"{targets.Count} chemins copiés.";
+    }
+
+    private async void ContextDelete_Click(object? sender, RoutedEventArgs e) =>
+        await DeleteNodesAsync(_contextSelectionProvider().Where(t => t.Node is not null).Select(t => t.Node!).ToList());
+
+    private async void ContextMove_Click(object? sender, RoutedEventArgs e) =>
+        await MoveNodesAsync(_contextSelectionProvider().Where(t => t.Node is not null).Select(t => t.Node!).ToList());
 
     private async void Browse_Click(object? sender, RoutedEventArgs e)
     {
@@ -188,12 +332,15 @@ public partial class MainWindow : Window
         }).ToList();
     }
 
-    private async void DeleteSelected_Click(object? sender, RoutedEventArgs e)
+    private async void DeleteSelected_Click(object? sender, RoutedEventArgs e) => await DeleteNodesAsync(GetTopLevelSelection());
+
+    private async void MoveSelected_Click(object? sender, RoutedEventArgs e) => await MoveNodesAsync(GetTopLevelSelection());
+
+    private async Task DeleteNodesAsync(List<FileSystemNodeViewModel> nodes)
     {
-        var nodes = GetTopLevelSelection();
         if (nodes.Count == 0)
         {
-            ViewModel.StatusText = "Sélectionnez d'abord un ou plusieurs éléments dans l'arborescence.";
+            ViewModel.StatusText = "Sélectionnez d'abord un ou plusieurs éléments.";
             return;
         }
 
@@ -214,12 +361,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void MoveSelected_Click(object? sender, RoutedEventArgs e)
+    private async Task MoveNodesAsync(List<FileSystemNodeViewModel> nodes)
     {
-        var nodes = GetTopLevelSelection();
         if (nodes.Count == 0)
         {
-            ViewModel.StatusText = "Sélectionnez d'abord un ou plusieurs éléments dans l'arborescence.";
+            ViewModel.StatusText = "Sélectionnez d'abord un ou plusieurs éléments.";
             return;
         }
 

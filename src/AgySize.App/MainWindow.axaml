@@ -87,6 +87,16 @@
                 <TabItem Header="Arborescence">
                     <TreeView x:Name="Tree" ItemsSource="{Binding TreeRoots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
                               SelectionMode="Multiple">
+                        <TreeView.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Ouvrir" Click="ContextOpen_Click" />
+                                <MenuItem Header="Ouvrir l'emplacement" Click="ContextOpenLocation_Click" />
+                                <MenuItem Header="Copier le chemin" Click="ContextCopyPath_Click" />
+                                <Separator />
+                                <MenuItem Header="Supprimer" Click="ContextDelete_Click" />
+                                <MenuItem Header="Déplacer..." Click="ContextMove_Click" />
+                            </ContextMenu>
+                        </TreeView.ContextMenu>
                         <TreeView.ItemTemplate>
                             <TreeDataTemplate ItemsSource="{Binding Children}">
                                 <Grid ColumnDefinitions="*,140,70,110" Margin="0,2">
@@ -102,7 +112,15 @@
                 </TabItem>
 
                 <TabItem Header="Audit SharePoint">
-                    <DataGrid ItemsSource="{Binding AuditIssues}" AutoGenerateColumns="False" IsReadOnly="True">
+                    <DataGrid x:Name="AuditGrid" ItemsSource="{Binding AuditIssues}" AutoGenerateColumns="False" IsReadOnly="True"
+                              SelectionMode="Extended">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Ouvrir" Click="ContextOpen_Click" />
+                                <MenuItem Header="Ouvrir l'emplacement" Click="ContextOpenLocation_Click" />
+                                <MenuItem Header="Copier le chemin" Click="ContextCopyPath_Click" />
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Sévérité" Binding="{Binding Severity}" Width="90" />
                             <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="200" />
@@ -134,13 +152,35 @@
 
                 <TabItem Header="Plus gros éléments">
                     <Grid ColumnDefinitions="*,*">
-                        <DataGrid Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding LargestFolderRows}" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid x:Name="LargestFolderGrid" Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding LargestFolderRows}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Ouvrir" Click="ContextOpen_Click" />
+                                    <MenuItem Header="Ouvrir l'emplacement" Click="ContextOpenLocation_Click" />
+                                    <MenuItem Header="Copier le chemin" Click="ContextCopyPath_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Supprimer" Click="ContextDelete_Click" />
+                                    <MenuItem Header="Déplacer..." Click="ContextMove_Click" />
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Dossier le plus volumineux" Binding="{Binding RelativePath}" Width="3*" />
                                 <DataGridTextColumn Header="Taille" Binding="{Binding Size}" Width="*" />
                             </DataGrid.Columns>
                         </DataGrid>
-                        <DataGrid Grid.Column="1" Margin="4,0,0,0" ItemsSource="{Binding LargestFileRows}" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid x:Name="LargestFileGrid" Grid.Column="1" Margin="4,0,0,0" ItemsSource="{Binding LargestFileRows}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Ouvrir" Click="ContextOpen_Click" />
+                                    <MenuItem Header="Ouvrir l'emplacement" Click="ContextOpenLocation_Click" />
+                                    <MenuItem Header="Copier le chemin" Click="ContextCopyPath_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Supprimer" Click="ContextDelete_Click" />
+                                    <MenuItem Header="Déplacer..." Click="ContextMove_Click" />
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Fichier le plus volumineux" Binding="{Binding RelativePath}" Width="3*" />
                                 <DataGridTextColumn Header="Taille" Binding="{Binding Size}" Width="*" />
@@ -150,7 +190,18 @@
                 </TabItem>
 
                 <TabItem Header="Fichiers anciens">
-                    <DataGrid ItemsSource="{Binding OldFileRows}" AutoGenerateColumns="False" IsReadOnly="True">
+                    <DataGrid x:Name="OldFileGrid" ItemsSource="{Binding OldFileRows}" AutoGenerateColumns="False" IsReadOnly="True"
+                              SelectionMode="Extended">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Ouvrir" Click="ContextOpen_Click" />
+                                <MenuItem Header="Ouvrir l'emplacement" Click="ContextOpenLocation_Click" />
+                                <MenuItem Header="Copier le chemin" Click="ContextCopyPath_Click" />
+                                <Separator />
+                                <MenuItem Header="Supprimer" Click="ContextDelete_Click" />
+                                <MenuItem Header="Déplacer..." Click="ContextMove_Click" />
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Chemin" Binding="{Binding RelativePath}" Width="3*" />
                             <DataGridTextColumn Header="Dernière modification" Binding="{Binding LastModified}" Width="160" />
@@ -165,7 +216,18 @@
                             <Button Content="Rechercher les doublons" Command="{Binding FindDuplicatesCommand}" />
                             <TextBlock Text="{Binding DuplicateSummary}" VerticalAlignment="Center" Foreground="#555555" />
                         </StackPanel>
-                        <DataGrid ItemsSource="{Binding DuplicateRows}" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid x:Name="DuplicateGrid" ItemsSource="{Binding DuplicateRows}" AutoGenerateColumns="False" IsReadOnly="True"
+                                  SelectionMode="Extended">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Ouvrir" Click="ContextOpen_Click" />
+                                    <MenuItem Header="Ouvrir l'emplacement" Click="ContextOpenLocation_Click" />
+                                    <MenuItem Header="Copier le chemin" Click="ContextCopyPath_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Supprimer" Click="ContextDelete_Click" />
+                                    <MenuItem Header="Déplacer..." Click="ContextMove_Click" />
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Groupe" Binding="{Binding Groupe}" Width="80" />
                                 <DataGridTextColumn Header="Chemin" Binding="{Binding RelativePath}" Width="4*" />
@@ -176,7 +238,18 @@
                 </TabItem>
 
                 <TabItem Header="Dossiers vides">
-                    <DataGrid ItemsSource="{Binding EmptyFolderRows}" AutoGenerateColumns="False" IsReadOnly="True">
+                    <DataGrid x:Name="EmptyFolderGrid" ItemsSource="{Binding EmptyFolderRows}" AutoGenerateColumns="False" IsReadOnly="True"
+                              SelectionMode="Extended">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Ouvrir" Click="ContextOpen_Click" />
+                                <MenuItem Header="Ouvrir l'emplacement" Click="ContextOpenLocation_Click" />
+                                <MenuItem Header="Copier le chemin" Click="ContextCopyPath_Click" />
+                                <Separator />
+                                <MenuItem Header="Supprimer" Click="ContextDelete_Click" />
+                                <MenuItem Header="Déplacer..." Click="ContextMove_Click" />
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Chemin" Binding="{Binding RelativePath}" Width="*" />
                         </DataGrid.Columns>
@@ -184,7 +257,15 @@
                 </TabItem>
 
                 <TabItem Header="Droits d'accès">
-                    <DataGrid ItemsSource="{Binding PermissionFindings}" AutoGenerateColumns="False" IsReadOnly="True">
+                    <DataGrid x:Name="PermissionsGrid" ItemsSource="{Binding PermissionFindings}" AutoGenerateColumns="False" IsReadOnly="True"
+                              SelectionMode="Extended">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Ouvrir" Click="ContextOpen_Click" />
+                                <MenuItem Header="Ouvrir l'emplacement" Click="ContextOpenLocation_Click" />
+                                <MenuItem Header="Copier le chemin" Click="ContextCopyPath_Click" />
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Sévérité" Binding="{Binding Severity}" Width="90" />
                             <DataGridTextColumn Header="Catégorie" Binding="{Binding Category}" Width="150" />
