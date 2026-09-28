@@ -534,7 +534,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         var byCategory = new Dictionary<AuditIssueType, (int Count, int AutoFixable)>();
         foreach (var row in AuditIssueRows)
         {
-            var current = byCategory.TryGetValue(row.Type, out var existing) ? existing : (0, 0);
+            var current = byCategory.TryGetValue(row.Type, out var existing) ? existing : (Count: 0, AutoFixable: 0);
             byCategory[row.Type] = (current.Count + 1, current.AutoFixable + (row.AutoFixable ? 1 : 0));
         }
 
