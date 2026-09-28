@@ -51,8 +51,8 @@ public partial class MainWindow : Window
                 .Select(r => new ContextTarget(r.Node.Model.FullPath, r.Node)).ToList();
 
         AuditGrid.ContextRequested += (_, _) => _contextSelectionProvider = () =>
-            AuditGrid.SelectedItems.Cast<AuditIssue>()
-                .Select(i => new ContextTarget(ResolveFullPath(i.RelativePath), null)).ToList();
+            AuditGrid.SelectedItems.Cast<AuditIssueRow>()
+                .Select(i => new ContextTarget(i.Node?.FullPath ?? ResolveFullPath(i.RelativePath), null)).ToList();
 
         PermissionsGrid.ContextRequested += (_, _) => _contextSelectionProvider = () =>
             PermissionsGrid.SelectedItems.Cast<PermissionFinding>()
@@ -352,6 +352,32 @@ public partial class MainWindow : Window
         catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
             ViewModel.StatusText = $"Impossible de générer le PDF : {ex.Message}";
+        }
+    }
+
+    private async void AutoFixVisible_Click(object? sender, RoutedEventArgs e) =>
+        await RunAutoFix(ViewModel.FilteredAuditIssueRows.Where(r => r.AutoFixable).ToList());
+
+    private async void AuditContextAutoFix_Click(object? sender, RoutedEventArgs e) =>
+        await RunAutoFix(AuditGrid.SelectedItems.Cast<AuditIssueRow>().Where(r => r.AutoFixable).ToList());
+
+    private async Task RunAutoFix(List<AuditIssueRow> rows)
+    {
+        var distinctPaths = rows.Select(r => r.RelativePath).Distinct().Count();
+        if (distinctPaths == 0)
+        {
+            ViewModel.StatusText = "Aucun élément corrigible dans la sélection.";
+            return;
+        }
+
+        var message = distinctPaths == 1
+            ? $"Corriger automatiquement « {rows[0].RelativePath} » ? Il sera renommé en « {rows[0].SuggestedName} »."
+            : $"Corriger automatiquement {distinctPaths} élément(s) (renommage) ?";
+
+        var confirmed = await ConfirmDialog.ShowAsync(this, "Confirmer la correction automatique", message);
+        if (confirmed)
+        {
+            ViewModel.AutoFixRows(rows);
         }
     }
 

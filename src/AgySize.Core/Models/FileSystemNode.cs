@@ -41,4 +41,29 @@ public sealed class FileSystemNode
     public string? OwnerName { get; set; }
 
     public bool IsEmptyFolder => Kind == FileSystemNodeKind.Folder && FileCount == 0;
+
+    /// <summary>
+    /// Retrouve un descendant (ou ce nœud lui-même) à partir d'un chemin relatif tel que rapporté par
+    /// <see cref="Models.AuditIssue.RelativePath"/>, en redescendant l'arbre segment par segment plutôt
+    /// qu'en gardant une référence directe (les lignes d'audit ne connaissent que des chemins texte).
+    /// </summary>
+    public FileSystemNode? FindByRelativePath(string relativePath)
+    {
+        if (relativePath.Length == 0 || relativePath == RelativePath)
+        {
+            return this;
+        }
+
+        var current = this;
+        foreach (var segment in relativePath.Split('/'))
+        {
+            current = current.Children.Find(c => c.Name == segment);
+            if (current is null)
+            {
+                return null;
+            }
+        }
+
+        return current;
+    }
 }

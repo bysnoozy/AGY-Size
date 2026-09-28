@@ -44,6 +44,24 @@ public class FileSystemScannerTests : IDisposable
     }
 
     [Fact]
+    public void FindByRelativePath_LocatesNestedDescendant()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempRoot, "Sub", "Deep"));
+        File.WriteAllText(Path.Combine(_tempRoot, "Sub", "Deep", "file.txt"), "content");
+
+        var scanner = new FileSystemScanner();
+        var result = scanner.Scan(new ScanOptions { RootPath = _tempRoot }, _logger);
+
+        var found = result.RootNode.FindByRelativePath("Sub/Deep/file.txt");
+
+        Assert.NotNull(found);
+        Assert.Equal("file.txt", found!.Name);
+        Assert.Equal(FileSystemNodeKind.File, found.Kind);
+        Assert.Same(result.RootNode, result.RootNode.FindByRelativePath(string.Empty));
+        Assert.Null(result.RootNode.FindByRelativePath("Nope/Missing.txt"));
+    }
+
+    [Fact]
     public void Scan_TracksLargestFilesAndFolders()
     {
         Directory.CreateDirectory(Path.Combine(_tempRoot, "Big"));

@@ -63,6 +63,51 @@ public static class FileOperations
         DetachFromTree(node);
     }
 
+    /// <summary>
+    /// Renomme un fichier ou un dossier dans son dossier parent (utilisé par la correction automatique
+    /// des anomalies de conformité SharePoint). Si <paramref name="desiredName"/> existe déjà à cet
+    /// emplacement, un suffixe numérique est ajouté avant l'extension jusqu'à trouver un nom libre.
+    /// Renvoie le nom effectivement utilisé.
+    /// </summary>
+    /// <remarks>
+    /// Contrairement à <see cref="Delete"/> et <see cref="Move"/>, l'élément reste physiquement dans le
+    /// même dossier : les tailles/compteurs agrégés des ancêtres n'ont donc pas besoin d'être ajustés.
+    /// <see cref="FileSystemNode.Name"/>/<see cref="FileSystemNode.FullPath"/>/
+    /// <see cref="FileSystemNode.RelativePath"/> sont en lecture seule (<c>init</c>) et ne peuvent pas
+    /// être mis à jour en place : ce nœud est simplement retiré de l'arbre en mémoire, un nouveau scan
+    /// le fera réapparaître sous son nouveau nom.
+    /// </remarks>
+    public static string Rename(FileSystemNode node, string desiredName)
+    {
+        var parentDirectory = Path.GetDirectoryName(node.FullPath)
+            ?? throw new InvalidOperationException("Impossible de déterminer le dossier parent.");
+
+        var stem = Path.GetFileNameWithoutExtension(desiredName);
+        var extension = Path.GetExtension(desiredName);
+        var finalName = desiredName;
+        var suffix = 1;
+        while (File.Exists(Path.Combine(parentDirectory, finalName)) || Directory.Exists(Path.Combine(parentDirectory, finalName)))
+        {
+            finalName = $"{stem} ({suffix}){extension}";
+            suffix++;
+        }
+
+        var destination = Path.Combine(parentDirectory, finalName);
+        if (node.Kind == FileSystemNodeKind.Folder)
+        {
+            Directory.Move(node.FullPath, destination);
+        }
+        else
+        {
+            File.Move(node.FullPath, destination);
+        }
+
+        node.Parent?.Children.Remove(node);
+        node.Parent = null;
+
+        return finalName;
+    }
+
     private static void DetachFromTree(FileSystemNode node)
     {
         var parent = node.Parent;

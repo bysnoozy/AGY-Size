@@ -65,4 +65,42 @@ public class FileOperationsTests : IDisposable
         Assert.DoesNotContain(result.RootNode.Children, c => c.Name == "file.txt");
         Assert.Equal(0, result.RootNode.FileCount);
     }
+
+    [Fact]
+    public void Rename_RenamesOnDiskAndRemovesFromTreeWithoutChangingAncestorTotals()
+    {
+        File.WriteAllText(Path.Combine(_tempRoot, "report .txt"), new string('a', 20));
+
+        var scanner = new FileSystemScanner();
+        var result = scanner.Scan(new ScanOptions { RootPath = _tempRoot }, _logger);
+        var file = result.RootNode.Children.Single(c => c.Name == "report .txt");
+
+        var finalName = FileOperations.Rename(file, "report.txt");
+
+        Assert.Equal("report.txt", finalName);
+        Assert.True(File.Exists(Path.Combine(_tempRoot, "report.txt")));
+        Assert.False(File.Exists(Path.Combine(_tempRoot, "report .txt")));
+        Assert.DoesNotContain(result.RootNode.Children, c => c.Name == "report .txt");
+        // Contrairement à Delete/Move, l'élément existe toujours dans le dossier : les totaux ne
+        // doivent pas être décrémentés.
+        Assert.Equal(20, result.RootNode.SizeInBytes);
+        Assert.Equal(1, result.RootNode.FileCount);
+    }
+
+    [Fact]
+    public void Rename_AddsNumericSuffixWhenTargetNameAlreadyExists()
+    {
+        File.WriteAllText(Path.Combine(_tempRoot, "old name.txt"), "x");
+        File.WriteAllText(Path.Combine(_tempRoot, "new.txt"), "y");
+
+        var scanner = new FileSystemScanner();
+        var result = scanner.Scan(new ScanOptions { RootPath = _tempRoot }, _logger);
+        var file = result.RootNode.Children.Single(c => c.Name == "old name.txt");
+
+        var finalName = FileOperations.Rename(file, "new.txt");
+
+        Assert.Equal("new (1).txt", finalName);
+        Assert.True(File.Exists(Path.Combine(_tempRoot, "new (1).txt")));
+        Assert.True(File.Exists(Path.Combine(_tempRoot, "new.txt")));
+    }
 }

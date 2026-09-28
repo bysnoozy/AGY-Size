@@ -27,10 +27,6 @@
                 <Button Content="Annuler" Width="100" Margin="0,0,8,4" Command="{Binding CancelScanCommand}" />
                 <Button Content="Exporter CSV" Width="120" Margin="0,0,8,4" Click="ExportCsv_Click" IsEnabled="{Binding CanExport}" />
                 <Button Content="Exporter HTML" Width="120" Margin="0,0,8,4" Click="ExportHtml_Click" IsEnabled="{Binding CanExport}" />
-                <Button Content="Anomalies (CSV)" Width="130" Margin="0,0,8,4" Click="ExportAuditCsv_Click" IsEnabled="{Binding CanExport}"
-                        ToolTip.Tip="Exporte uniquement les anomalies de compatibilité SharePoint détectées." />
-                <Button Content="Rapport PDF client" Width="140" Margin="0,0,8,4" Click="ExportAuditPdf_Click" IsEnabled="{Binding CanExport}"
-                        ToolTip.Tip="Rapport de synthèse propre, à remettre au client avant une migration SharePoint : actions à réaliser et détail des anomalies par catégorie." />
                 <CheckBox Content="Analyser les droits (plus lent)" IsChecked="{Binding AnalyzePermissions}" VerticalAlignment="Center" Margin="8,0,8,4" />
                 <CheckBox Content="Démarrer avec Windows" IsChecked="{Binding AutoStartEnabled}" VerticalAlignment="Center" Margin="0,0,8,4" />
                 <TextBlock Text="{Binding ProgressText}" VerticalAlignment="Center" Foreground="#555555" Margin="8,0,0,4" />
@@ -83,7 +79,15 @@
                 <Button Content="Planifier" Width="90" Margin="0,0,8,4" Command="{Binding ScheduleDailyScanCommand}" />
             </WrapPanel>
 
-            <TabControl Grid.Row="4">
+            <Grid Grid.Row="4" RowDefinitions="Auto,*">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="16" Margin="0,0,0,8">
+                    <RadioButton GroupName="Section" Content="Analyse de l'espace disque" FontWeight="SemiBold"
+                                 IsChecked="{Binding ShowDiskAnalysis}" />
+                    <RadioButton GroupName="Section" Content="Mise en conformité SharePoint" FontWeight="SemiBold"
+                                 IsChecked="{Binding ShowSharePointCompliance}" />
+                </StackPanel>
+
+            <TabControl Grid.Row="1" IsVisible="{Binding ShowDiskAnalysis}">
                 <TabItem Header="Arborescence">
                     <TreeView x:Name="Tree" ItemsSource="{Binding TreeRoots}" SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
                               SelectionMode="Multiple">
@@ -109,25 +113,6 @@
                             </TreeDataTemplate>
                         </TreeView.ItemTemplate>
                     </TreeView>
-                </TabItem>
-
-                <TabItem Header="Audit SharePoint">
-                    <DataGrid x:Name="AuditGrid" ItemsSource="{Binding AuditIssues}" AutoGenerateColumns="False" IsReadOnly="True"
-                              SelectionMode="Extended">
-                        <DataGrid.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="Ouvrir" Click="ContextOpen_Click" />
-                                <MenuItem Header="Ouvrir l'emplacement" Click="ContextOpenLocation_Click" />
-                                <MenuItem Header="Copier le chemin" Click="ContextCopyPath_Click" />
-                            </ContextMenu>
-                        </DataGrid.ContextMenu>
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Sévérité" Binding="{Binding Severity}" Width="90" />
-                            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="200" />
-                            <DataGridTextColumn Header="Chemin" Binding="{Binding RelativePath}" Width="3*" />
-                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="4*" />
-                        </DataGrid.Columns>
-                    </DataGrid>
                 </TabItem>
 
                 <TabItem Header="Treemap">
@@ -295,6 +280,61 @@
                     </DockPanel>
                 </TabItem>
             </TabControl>
+
+            <Grid Grid.Row="1" IsVisible="{Binding ShowSharePointCompliance}" RowDefinitions="Auto,Auto,Auto,Auto,*">
+                <Border Grid.Row="0" Background="#EAF1F8" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                    <TextBlock TextWrapping="Wrap" Foreground="#1B3A63">
+                        Anomalies qui empêcheraient ou compliqueraient une migration vers SharePoint Online / OneDrive.
+                        Les anomalies marquées « Corrigible » (espace/point en trop, caractère interdit, nom trop long) peuvent
+                        être résolues en un clic par un renommage ; les autres (chemin trop long, type de fichier bloqué,
+                        nom réservé, doublon...) demandent une décision manuelle — utilisez « Ouvrir l'emplacement » pour y aller directement.
+                    </TextBlock>
+                </Border>
+
+                <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+                    <TextBox Text="{Binding AuditFilterText}" Width="220" Margin="0,0,8,4" Watermark="Filtrer (chemin, description, type)..." />
+                    <CheckBox Content="Corrigibles uniquement" IsChecked="{Binding AuditShowOnlyFixable}" VerticalAlignment="Center" Margin="0,0,16,4" />
+                    <Button Content="Corriger automatiquement (visible)" Margin="0,0,8,4" Click="AutoFixVisible_Click"
+                            IsEnabled="{Binding CanAutoFixVisible}"
+                            ToolTip.Tip="Renomme en une fois tous les éléments visibles ci-dessous marqués « Corrigible »." />
+                    <Button Content="Anomalies (CSV)" Margin="0,0,8,4" Click="ExportAuditCsv_Click" IsEnabled="{Binding CanExport}"
+                            ToolTip.Tip="Exporte uniquement les anomalies de compatibilité SharePoint détectées." />
+                    <Button Content="Rapport PDF client" Margin="0,0,8,4" Click="ExportAuditPdf_Click" IsEnabled="{Binding CanExport}"
+                            ToolTip.Tip="Rapport de synthèse propre, à remettre au client avant une migration SharePoint." />
+                    <TextBlock Text="{Binding AutoFixSummary}" VerticalAlignment="Center" Foreground="#555555" Margin="8,0,0,4" />
+                </WrapPanel>
+
+                <DataGrid Grid.Row="2" ItemsSource="{Binding AuditCategorySummary}" AutoGenerateColumns="False" IsReadOnly="True"
+                          MaxHeight="150" Margin="0,0,0,8">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Catégorie" Binding="{Binding TypeDisplay}" Width="3*" />
+                        <DataGridTextColumn Header="Occurrences" Binding="{Binding Count}" Width="*" />
+                        <DataGridTextColumn Header="Dont corrigibles auto." Binding="{Binding AutoFixableCount}" Width="*" />
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <DataGrid x:Name="AuditGrid" Grid.Row="4" ItemsSource="{Binding FilteredAuditIssueRows}" AutoGenerateColumns="False" IsReadOnly="True"
+                          SelectionMode="Extended">
+                    <DataGrid.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Ouvrir" Click="ContextOpen_Click" />
+                            <MenuItem Header="Ouvrir l'emplacement" Click="ContextOpenLocation_Click" />
+                            <MenuItem Header="Copier le chemin" Click="ContextCopyPath_Click" />
+                            <Separator />
+                            <MenuItem Header="Corriger automatiquement" Click="AuditContextAutoFix_Click" />
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Sévérité" Binding="{Binding Severity}" Width="90" />
+                        <DataGridTextColumn Header="Type" Binding="{Binding TypeDisplay}" Width="200" />
+                        <DataGridTextColumn Header="Chemin" Binding="{Binding RelativePath}" Width="3*" />
+                        <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="3*" />
+                        <DataGridTextColumn Header="Corrigible" Binding="{Binding AutoFixableDisplay}" Width="80" />
+                        <DataGridTextColumn Header="Suggestion" Binding="{Binding SuggestionDisplay}" Width="2*" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+            </Grid>
 
             <TextBlock Grid.Row="5" Text="{Binding StatusText}" Margin="0,8,0,0" Foreground="#333333" />
         </Grid>

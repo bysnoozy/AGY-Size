@@ -13,15 +13,27 @@ scanner de tailles/droits/logs d'origine, et l'audit de migration SharePoint du 
 
 - **Arborescence des tailles** : scan récursif d'un dossier avec tailles agrégées par dossier
   (fichiers/sous-dossiers), triées par taille décroissante, barre de progression par élément.
-- **Audit de migration SharePoint Online / OneDrive** (évalué automatiquement à chaque scan, sans
-  case à cocher séparée) : chemins trop longs, caractères interdits, noms structurellement invalides
-  (espace en début/fin, point final, points consécutifs, nom trop long), noms réservés (périphériques
-  Windows, fichiers système SharePoint, dossier "Forms" à la racine), types de fichiers bloqués à
-  l'upload, fichiers dépassant la limite de taille, dossiers trop imbriqués, doublons de noms ne
-  différant que par la casse. Seuils alignés sur la documentation Microsoft, ajustables dans le code
-  (`AgySize.Core.Audit.Rules.SharePointLimits` / `ScanOptions`). Export dédié en CSV, section propre
-  dans le rapport HTML, et **rapport PDF client** prêt à remettre (synthèse + action recommandée et
-  liste complète par catégorie d'anomalie).
+- **Mise en conformité SharePoint Online / OneDrive**, dans une section dédiée et séparée de
+  l'analyse d'espace disque (bascule en haut des onglets) : audit évalué automatiquement à chaque
+  scan (sans case à cocher séparée) — chemins trop longs, caractères interdits, noms
+  structurellement invalides (espace en début/fin, point final, points consécutifs, nom trop long),
+  noms réservés (périphériques Windows, fichiers système SharePoint, dossier "Forms" à la racine),
+  types de fichiers bloqués à l'upload, fichiers dépassant la limite de taille, dossiers trop
+  imbriqués, doublons de noms ne différant que par la casse. Seuils alignés sur la documentation
+  Microsoft, ajustables dans le code (`AgySize.Core.Audit.Rules.SharePointLimits` / `ScanOptions`).
+  Pour faciliter la mise en conformité avant une migration réelle :
+  - **récapitulatif par catégorie** (nombre d'occurrences, dont combien sont corrigibles
+    automatiquement) ;
+  - **filtre texte** (chemin, description, type) et case "corrigibles uniquement" pour se concentrer
+    sur un sous-ensemble ;
+  - **correction automatique en un clic** (renommage) pour les anomalies purement mécaniques —
+    espace/point en trop, points consécutifs, caractère interdit, nom trop long — combinant toutes
+    les anomalies cumulées sur un même nom en un seul renommage, disponible par élément (clic droit
+    → "Corriger automatiquement") ou en masse sur tout ce qui est actuellement affiché ; les
+    catégories nécessitant une décision humaine (chemin trop long, type bloqué, nom réservé,
+    doublon...) restent manuelles, avec un accès direct via "Ouvrir l'emplacement" ;
+  - export dédié en CSV, section propre dans le rapport HTML, et **rapport PDF client** prêt à
+    remettre (synthèse + action recommandée et liste complète par catégorie d'anomalie).
 - **Treemap** : visualisation en rectangles proportionnels à la taille, avec navigation par clic
   pour descendre dans un sous-dossier (algorithme "squarified treemap").
 - **Répartition par type de fichier** (extension, nombre de fichiers, taille).
@@ -133,7 +145,10 @@ secrets CI et l'installation du certificat de confiance sur les postes AGYTEK.
   cocher) car elle ralentit sensiblement le scan sur de grosses arborescences.
 - Après une suppression/déplacement effectué depuis un onglet autre que "Arborescence" (ex. "Plus
   gros éléments"), les totaux globaux se mettent à jour immédiatement, mais les lignes déjà
-  affichées dans l'arborescence ne se rafraîchissent qu'au prochain scan.
+  affichées dans l'arborescence ne se rafraîchissent qu'au prochain scan. Même principe pour la
+  correction automatique des anomalies SharePoint (renommage) : l'élément corrigé disparaît de la
+  liste des anomalies, mais un nouveau scan est nécessaire pour un audit complètement à jour (par
+  exemple si le renommage résout aussi un "chemin trop long" plus haut dans l'arborescence).
 - La planification de scans nécessite que `AgySize.Cli.exe` soit publié à côté de l'application.
 - Pas d'agent/service en tâche de fond pour l'instant : AGY-Size est une application de bureau
   classique (avec démarrage automatique optionnel). Un agent est envisagé pour une itération future.

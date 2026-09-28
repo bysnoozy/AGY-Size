@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using AgySize.Core.Audit.Remediation;
 using AgySize.Core.Logging;
 using AgySize.Core.Models;
 using AgySize.Core.Operations;
@@ -39,6 +40,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private FileSystemNodeViewModel? _selectedNode;
     private FileSystemNodeViewModel? _treemapNode;
     private string _treemapPath = "(racine)";
+    private bool _showSharePointCompliance;
+    private string _auditFilterText = string.Empty;
+    private bool _auditShowOnlyFixable;
+    private string _autoFixSummary = "-";
+    private int _lastScanMaxNameLength = 255;
 
     public MainViewModel()
     {
@@ -108,7 +114,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public ObservableCollection<PermissionFinding> PermissionFindings { get; } = new();
 
-    public ObservableCollection<AuditIssue> AuditIssues { get; } = new();
+    /// <summary>Toutes les anomalies de la dernière analyse, non filtrées.</summary>
+    public ObservableCollection<AuditIssueRow> AuditIssueRows { get; } = new();
+
+    /// <summary>Sous-ensemble de <see cref="AuditIssueRows"/> après filtre texte / "corrigibles uniquement" : ce que l'onglet affiche.</summary>
+    public ObservableCollection<AuditIssueRow> FilteredAuditIssueRows { get; } = new();
+
+    public ObservableCollection<AuditCategorySummaryRow> AuditCategorySummary { get; } = new();
 
     public ObservableCollection<DuplicateRow> DuplicateRows { get; } = new();
 
@@ -253,6 +265,53 @@ public sealed class MainViewModel : INotifyPropertyChanged
         private set => SetField(ref _auditIssueCount, value);
     }
 
+    /// <summary>Bascule entre l'onglet "Analyse de l'espace disque" et la section dédiée "Mise en conformité SharePoint".</summary>
+    public bool ShowSharePointCompliance
+    {
+        get => _showSharePointCompliance;
+        set
+        {
+            if (SetField(ref _showSharePointCompliance, value))
+            {
+                OnPropertyChanged(nameof(ShowDiskAnalysis));
+            }
+        }
+    }
+
+    public bool ShowDiskAnalysis => !ShowSharePointCompliance;
+
+    public string AuditFilterText
+    {
+        get => _auditFilterText;
+        set
+        {
+            if (SetField(ref _auditFilterText, value))
+            {
+                RefreshAuditFilteredView();
+            }
+        }
+    }
+
+    public bool AuditShowOnlyFixable
+    {
+        get => _auditShowOnlyFixable;
+        set
+        {
+            if (SetField(ref _auditShowOnlyFixable, value))
+            {
+                RefreshAuditFilteredView();
+            }
+        }
+    }
+
+    public string AutoFixSummary
+    {
+        get => _autoFixSummary;
+        private set => SetField(ref _autoFixSummary, value);
+    }
+
+    public bool CanAutoFixVisible => FilteredAuditIssueRows.Any(r => r.AutoFixable);
+
     public string DuplicateSummary
     {
         get => _duplicateSummary;
@@ -306,12 +365,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OldFileRows.Clear();
         EmptyFolderRows.Clear();
         PermissionFindings.Clear();
-        AuditIssues.Clear();
+        AuditIssueRows.Clear();
+        FilteredAuditIssueRows.Clear();
+        AuditCategorySummary.Clear();
+        AuditFilterText = string.Empty;
+        AuditShowOnlyFixable = false;
+        AutoFixSummary = "-";
         DuplicateRows.Clear();
         DuplicateSummary = "-";
         LastResult = null;
 
         var options = new ScanOptions { RootPath = RootPath, AnalyzePermissions = AnalyzePermissions };
+        _lastScanMaxNameLength = options.MaxNameLength;
         var progress = new Progress<ScanProgress>(p =>
         {
             ProgressText = $"{p.FilesScanned:N0} fichiers, {p.FoldersScanned:N0} dossiers analysés";
@@ -423,10 +488,147 @@ public sealed class MainViewModel : INotifyPropertyChanged
             PermissionFindings.Add(finding);
         }
 
-        foreach (var issue in result.AuditIssues)
+        BuildAuditIssueRows(result);
+    }
+
+    /// <summary>
+    /// Construit les lignes de l'onglet "Mise en conformité SharePoint" à partir des anomalies brutes
+    /// du scan : regroupe par chemin pour retrouver le nœud réel une seule fois et calculer une
+    /// suggestion de correction tenant compte de toutes les anomalies mécaniques cumulées sur ce nom
+    /// (voir <see cref="NameSanitizer"/>), puis construit le récapitulatif par catégorie.
+    /// </summary>
+    private void BuildAuditIssueRows(ScanResult result)
+    {
+        foreach (var group in result.AuditIssues.GroupBy(i => i.RelativePath))
         {
-            AuditIssues.Add(issue);
+            var node = result.RootNode.FindByRelativePath(group.Key);
+            var types = group.Select(i => i.Type).ToList();
+            var suggestedName = node is not null
+                ? NameSanitizer.SuggestFixedName(node.Name, types, _lastScanMaxNameLength)
+                : null;
+
+            foreach (var issue in group)
+            {
+                AuditIssueRows.Add(new AuditIssueRow
+                {
+                    Type = issue.Type,
+                    Severity = issue.Severity,
+                    RelativePath = issue.RelativePath,
+                    Description = issue.Description,
+                    TypeDisplay = AuditIssueTypeDisplay.For(issue.Type),
+                    Node = node,
+                    SuggestedName = suggestedName,
+                });
+            }
         }
+
+        RebuildAuditCategorySummary();
+        RefreshAuditFilteredView();
+    }
+
+    /// <summary>Reconstruit le récapitulatif par catégorie à partir de <see cref="AuditIssueRows"/> (appelé après le scan et après chaque correction, pour que les compteurs restent à jour).</summary>
+    private void RebuildAuditCategorySummary()
+    {
+        AuditCategorySummary.Clear();
+
+        var byCategory = new Dictionary<AuditIssueType, (int Count, int AutoFixable)>();
+        foreach (var row in AuditIssueRows)
+        {
+            var current = byCategory.TryGetValue(row.Type, out var existing) ? existing : (0, 0);
+            byCategory[row.Type] = (current.Count + 1, current.AutoFixable + (row.AutoFixable ? 1 : 0));
+        }
+
+        foreach (var (type, stats) in byCategory.OrderByDescending(kv => kv.Value.Count))
+        {
+            AuditCategorySummary.Add(new AuditCategorySummaryRow
+            {
+                TypeDisplay = AuditIssueTypeDisplay.For(type),
+                Count = stats.Count,
+                AutoFixableCount = stats.AutoFixable,
+            });
+        }
+    }
+
+    /// <summary>Réapplique le filtre texte / "corrigibles uniquement" sur <see cref="AuditIssueRows"/>.</summary>
+    public void RefreshAuditFilteredView()
+    {
+        FilteredAuditIssueRows.Clear();
+
+        IEnumerable<AuditIssueRow> rows = AuditIssueRows;
+
+        if (AuditShowOnlyFixable)
+        {
+            rows = rows.Where(r => r.AutoFixable);
+        }
+
+        if (!string.IsNullOrWhiteSpace(AuditFilterText))
+        {
+            var needle = AuditFilterText.Trim();
+            rows = rows.Where(r =>
+                r.RelativePath.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
+                r.Description.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
+                r.TypeDisplay.Contains(needle, StringComparison.OrdinalIgnoreCase));
+        }
+
+        foreach (var row in rows)
+        {
+            FilteredAuditIssueRows.Add(row);
+        }
+
+        OnPropertyChanged(nameof(CanAutoFixVisible));
+        UpdateAutoFixSummary();
+    }
+
+    private void UpdateAutoFixSummary()
+    {
+        var itemsTotal = AuditIssueRows.Select(r => r.RelativePath).Distinct().Count();
+        var fixableCount = AuditIssueRows.Where(r => r.AutoFixable).Select(r => r.RelativePath).Distinct().Count();
+        AutoFixSummary = AuditIssueRows.Count == 0
+            ? "Aucune anomalie détectée."
+            : $"{fixableCount:N0} élément(s) sur {itemsTotal:N0} corrigible(s) automatiquement (renommage).";
+    }
+
+    /// <summary>
+    /// Applique la correction automatique (renommage) à chaque élément distinct représenté par les
+    /// lignes fournies, puis retire de <see cref="AuditIssueRows"/> toutes les lignes partageant le
+    /// même chemin d'origine (elles sont résolues ensemble par un seul renommage). Renvoie le nombre
+    /// d'éléments effectivement corrigés.
+    /// </summary>
+    public int AutoFixRows(IReadOnlyList<AuditIssueRow> rows)
+    {
+        var fixedCount = 0;
+        var failedPaths = new List<string>();
+
+        foreach (var row in rows.Where(r => r.AutoFixable).DistinctBy(r => r.RelativePath))
+        {
+            try
+            {
+                var finalName = FileOperations.Rename(row.Node!, row.SuggestedName!);
+                var originalPath = row.RelativePath;
+                foreach (var stale in AuditIssueRows.Where(r => r.RelativePath == originalPath).ToList())
+                {
+                    AuditIssueRows.Remove(stale);
+                }
+
+                fixedCount++;
+                _logger.Info("Conformité SharePoint", $"'{row.Node!.FullPath}' renommé en '{finalName}'.");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                failedPaths.Add(row.RelativePath);
+                _logger.Error("Conformité SharePoint", $"Échec du renommage de '{row.RelativePath}' : {ex}");
+            }
+        }
+
+        RebuildAuditCategorySummary();
+        RefreshAuditFilteredView();
+        AuditIssueCount = AuditIssueRows.Count.ToString("N0");
+
+        StatusText = failedPaths.Count == 0
+            ? $"{fixedCount} élément(s) corrigé(s). Relancez une analyse pour un audit à jour."
+            : $"{fixedCount} élément(s) corrigé(s), {failedPaths.Count} échec(s) (voir le journal).";
+
+        return fixedCount;
     }
 
     private async Task FindDuplicatesAsync()
