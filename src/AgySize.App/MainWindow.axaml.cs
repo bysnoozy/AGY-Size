@@ -185,6 +185,24 @@ public partial class MainWindow : Window
 
     private void TreemapUp_Click(object? sender, RoutedEventArgs e) => ViewModel.TreemapGoUp();
 
+    /// <summary>
+    /// Dossier proposé par défaut dans les sélecteurs d'enregistrement. Sans ça, Avalonia peut
+    /// proposer le dossier de travail courant du processus — qui, une fois l'application installée
+    /// via le .msi, est le dossier d'installation sous "Program Files", protégé en écriture pour un
+    /// utilisateur standard (voir le plantage "Access to the path 'C:\Program Files\...' is denied").
+    /// </summary>
+    private static async Task<IStorageFolder?> GetDefaultExportFolderAsync(TopLevel topLevel)
+    {
+        try
+        {
+            return await topLevel.StorageProvider.TryGetWellKnownFolderAsync(WellKnownFolder.Documents);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
     private async void ExportCsv_Click(object? sender, RoutedEventArgs e)
     {
         var result = ViewModel.LastResult;
@@ -203,13 +221,23 @@ public partial class MainWindow : Window
         {
             Title = "Exporter la répartition des tailles en CSV",
             SuggestedFileName = "agysize-tailles.csv",
+            SuggestedStartLocation = await GetDefaultExportFolderAsync(topLevel),
             FileTypeChoices = new[] { new FilePickerFileType("Fichier CSV") { Patterns = new[] { "*.csv" } } },
         });
 
-        if (file is not null)
+        if (file is null)
+        {
+            return;
+        }
+
+        try
         {
             CsvReportWriter.WriteSizeReport(result, file.Path.LocalPath);
             ViewModel.StatusText = $"Export CSV enregistré : {file.Path.LocalPath}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ViewModel.StatusText = $"Export impossible : {ex.Message}";
         }
     }
 
@@ -231,13 +259,23 @@ public partial class MainWindow : Window
         {
             Title = "Exporter le rapport HTML",
             SuggestedFileName = "agysize-rapport.html",
+            SuggestedStartLocation = await GetDefaultExportFolderAsync(topLevel),
             FileTypeChoices = new[] { new FilePickerFileType("Rapport HTML") { Patterns = new[] { "*.html" } } },
         });
 
-        if (file is not null)
+        if (file is null)
+        {
+            return;
+        }
+
+        try
         {
             HtmlReportWriter.WriteReport(result, file.Path.LocalPath);
             ViewModel.StatusText = $"Rapport HTML enregistré : {file.Path.LocalPath}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ViewModel.StatusText = $"Export impossible : {ex.Message}";
         }
     }
 
@@ -259,13 +297,23 @@ public partial class MainWindow : Window
         {
             Title = "Exporter les anomalies SharePoint en CSV",
             SuggestedFileName = "agysize-anomalies-sharepoint.csv",
+            SuggestedStartLocation = await GetDefaultExportFolderAsync(topLevel),
             FileTypeChoices = new[] { new FilePickerFileType("Fichier CSV") { Patterns = new[] { "*.csv" } } },
         });
 
-        if (file is not null)
+        if (file is null)
+        {
+            return;
+        }
+
+        try
         {
             CsvReportWriter.WriteAuditIssues(result, file.Path.LocalPath);
             ViewModel.StatusText = $"Export des anomalies CSV enregistré : {file.Path.LocalPath}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ViewModel.StatusText = $"Export impossible : {ex.Message}";
         }
     }
 
@@ -287,6 +335,7 @@ public partial class MainWindow : Window
         {
             Title = "Exporter le rapport PDF client (audit SharePoint)",
             SuggestedFileName = "agysize-rapport-audit-client.pdf",
+            SuggestedStartLocation = await GetDefaultExportFolderAsync(topLevel),
             FileTypeChoices = new[] { new FilePickerFileType("Rapport PDF") { Patterns = new[] { "*.pdf" } } },
         });
 
@@ -300,7 +349,7 @@ public partial class MainWindow : Window
             PdfReportWriter.WriteClientReport(result, file.Path.LocalPath);
             ViewModel.StatusText = $"Rapport PDF client enregistré : {file.Path.LocalPath}";
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
             ViewModel.StatusText = $"Impossible de générer le PDF : {ex.Message}";
         }
@@ -403,6 +452,7 @@ public partial class MainWindow : Window
         {
             Title = "Exporter le journal",
             SuggestedFileName = "agysize-journal.txt",
+            SuggestedStartLocation = await GetDefaultExportFolderAsync(topLevel),
             FileTypeChoices = new[] { new FilePickerFileType("Fichier texte") { Patterns = new[] { "*.txt" } } },
         });
 
@@ -411,9 +461,16 @@ public partial class MainWindow : Window
             return;
         }
 
-        var lines = ViewModel.LogRows.Select(r => $"{r.Time} [{r.Level}] {r.Source} - {r.Message}");
-        await File.WriteAllLinesAsync(file.Path.LocalPath, lines);
-        ViewModel.StatusText = $"Journal exporté : {file.Path.LocalPath}";
+        try
+        {
+            var lines = ViewModel.LogRows.Select(r => $"{r.Time} [{r.Level}] {r.Source} - {r.Message}");
+            await File.WriteAllLinesAsync(file.Path.LocalPath, lines);
+            ViewModel.StatusText = $"Journal exporté : {file.Path.LocalPath}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ViewModel.StatusText = $"Export impossible : {ex.Message}";
+        }
     }
 
     private void OpenLogsFolder_Click(object? sender, RoutedEventArgs e)

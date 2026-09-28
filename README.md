@@ -44,7 +44,9 @@ scanner de tailles/droits/logs d'origine, et l'audit de migration SharePoint du 
   synthèse : volumétrie, plus gros éléments, répartition par type, anomalies SharePoint, constats sur
   les droits), en plus du rapport PDF client dédié à l'audit SharePoint.
 - **Démarrage automatique avec Windows**, activable/désactivable depuis l'application (clé de
-  registre `Run` de l'utilisateur courant, sans droits administrateur).
+  registre `Run` de l'utilisateur courant). L'application elle-même nécessite une élévation
+  administrateur à chaque lancement (voir ci-dessous) : Windows affichera une invite UAC au
+  démarrage automatique comme à un lancement manuel.
 - **Scans planifiés** : bouton "Planifier" qui enregistre une tâche quotidienne dans le
   Planificateur de tâches Windows, exécutant `AgySize.Cli` et exportant un rapport HTML.
 - **Ligne de commande** (`AgySize.Cli`) pour scripter un scan : `agysize scan <dossier> [--csv f]
@@ -132,3 +134,10 @@ cocher "Démarrer avec Windows"), en plus de celui déjà configuré par l'insta
 - Si l'application se ferme de façon inattendue (plantage), un fichier
   `%LocalAppData%\AGY-Size\logs\crash.log` est créé avec le détail de l'exception : à joindre en cas
   de rapport de bug, en plus du journal normal (`agysize.log` dans le même dossier).
+- **AgySize.App nécessite une élévation administrateur à chaque lancement** (manifeste
+  `requireAdministrator`) : la suppression/le déplacement de fichiers et la lecture des ACL NTFS sur
+  des dossiers partagés/protégés en dépendent souvent. Conséquence : Windows affiche une invite UAC à
+  chaque démarrage, y compris via le démarrage automatique ou un raccourci ; sur un poste où
+  l'utilisateur n'est pas administrateur local, l'application ne pourra pas du tout se lancer sans
+  qu'un administrateur saisisse ses identifiants. `AgySize.Cli.exe` (scans planifiés) n'est pas
+  concerné : il continue de s'exécuter sans élévation.
