@@ -33,6 +33,18 @@ public static class CsvReportWriter
         }
     }
 
+    public static void WriteAuditIssues(ScanResult result, string filePath)
+    {
+        using var writer = new StreamWriter(filePath, false, Encoding.UTF8);
+        writer.WriteLine("Sévérité;Type;Chemin;Description");
+
+        foreach (var issue in result.AuditIssues.OrderBy(i => i.RelativePath, StringComparer.OrdinalIgnoreCase))
+        {
+            writer.WriteLine(
+                $"{issue.Severity};{issue.Type};{EscapeCsv(issue.RelativePath)};{EscapeCsv(issue.Description)}");
+        }
+    }
+
     private static string EscapeCsv(string value)
     {
         if (value.Contains(';') || value.Contains('"') || value.Contains('\n'))

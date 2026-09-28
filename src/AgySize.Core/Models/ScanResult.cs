@@ -24,6 +24,12 @@ public sealed class ScanResult
     /// <summary>Vide si <see cref="ScanOptions.AnalyzePermissions"/> était désactivé pour ce scan.</summary>
     public required IReadOnlyList<PermissionFinding> PermissionFindings { get; init; }
 
+    /// <summary>
+    /// Anomalies de compatibilité avec une migration SharePoint Online / OneDrive (voir
+    /// <see cref="Audit.Rules"/>), évaluées systématiquement pendant le scan.
+    /// </summary>
+    public required IReadOnlyList<AuditIssue> AuditIssues { get; init; }
+
     public DateTime? OldestFileModifiedUtc { get; init; }
 
     public DateTime? NewestFileModifiedUtc { get; init; }

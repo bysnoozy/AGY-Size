@@ -20,6 +20,7 @@ public static class HtmlReportWriter
         sb.AppendLine($"<li>Dossiers : {result.RootNode.FolderCount:N0}</li>");
         sb.AppendLine($"<li>Taille totale : {FormatBytes(result.RootNode.SizeInBytes)}</li>");
         sb.AppendLine($"<li>Dossiers vides : {result.EmptyFolders.Count:N0}</li>");
+        sb.AppendLine($"<li>Anomalies de compatibilité SharePoint : {result.AuditIssues.Count:N0}</li>");
         sb.AppendLine($"<li>Erreurs de lecture : {result.Errors.Count:N0}</li>");
         sb.AppendLine("</ul>");
 
@@ -40,6 +41,17 @@ public static class HtmlReportWriter
             "Répartition par type",
             new[] { "Extension", "Fichiers", "Taille" },
             result.ExtensionStats.Select(e => new[] { e.Extension, e.FileCount.ToString("N0"), FormatBytes(e.TotalSizeInBytes) }));
+
+        if (result.AuditIssues.Count > 0)
+        {
+            AppendTable(
+                sb,
+                "Anomalies de compatibilité SharePoint",
+                new[] { "Sévérité", "Type", "Chemin", "Description" },
+                result.AuditIssues
+                    .OrderBy(i => i.RelativePath, StringComparer.OrdinalIgnoreCase)
+                    .Select(i => new[] { i.Severity.ToString(), i.Type.ToString(), i.RelativePath, i.Description }));
+        }
 
         if (result.PermissionFindings.Count > 0)
         {

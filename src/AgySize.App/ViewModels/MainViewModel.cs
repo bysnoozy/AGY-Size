@@ -33,6 +33,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private string _totalSize = "-";
     private string _emptyFolderCount = "-";
     private string _permissionFindingCount = "-";
+    private string _auditIssueCount = "-";
     private string _duplicateSummary = "-";
     private ScanResult? _lastResult;
     private FileSystemNodeViewModel? _selectedNode;
@@ -106,6 +107,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<EmptyFolderRow> EmptyFolderRows { get; } = new();
 
     public ObservableCollection<PermissionFinding> PermissionFindings { get; } = new();
+
+    public ObservableCollection<AuditIssue> AuditIssues { get; } = new();
 
     public ObservableCollection<DuplicateRow> DuplicateRows { get; } = new();
 
@@ -244,6 +247,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         private set => SetField(ref _permissionFindingCount, value);
     }
 
+    public string AuditIssueCount
+    {
+        get => _auditIssueCount;
+        private set => SetField(ref _auditIssueCount, value);
+    }
+
     public string DuplicateSummary
     {
         get => _duplicateSummary;
@@ -297,6 +306,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OldFileRows.Clear();
         EmptyFolderRows.Clear();
         PermissionFindings.Clear();
+        AuditIssues.Clear();
         DuplicateRows.Clear();
         DuplicateSummary = "-";
         LastResult = null;
@@ -352,6 +362,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         TotalSize = FormatBytes(result.RootNode.SizeInBytes);
         EmptyFolderCount = result.EmptyFolders.Count.ToString("N0");
         PermissionFindingCount = result.PermissionFindings.Count.ToString("N0");
+        AuditIssueCount = result.AuditIssues.Count.ToString("N0");
 
         foreach (var stat in result.ExtensionStats)
         {
@@ -410,6 +421,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         foreach (var finding in result.PermissionFindings)
         {
             PermissionFindings.Add(finding);
+        }
+
+        foreach (var issue in result.AuditIssues)
+        {
+            AuditIssues.Add(issue);
         }
     }
 

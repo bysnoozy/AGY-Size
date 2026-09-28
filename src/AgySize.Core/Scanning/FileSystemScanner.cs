@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using AgySize.Core.Audit.Rules;
 using AgySize.Core.Logging;
 using AgySize.Core.Models;
 using AgySize.Core.Security;
@@ -8,12 +9,28 @@ namespace AgySize.Core.Scanning;
 /// <summary>
 /// Parcourt une arborescence et construit un arbre de <see cref="FileSystemNode"/> avec les tailles
 /// agrégées récursivement (façon TreeSize), tout en collectant la volumétrie par extension, les plus
-/// gros fichiers/dossiers, les dossiers vides et, si demandé, les constats sur les droits NTFS.
+/// gros fichiers/dossiers, les dossiers vides, les anomalies de compatibilité SharePoint et, si
+/// demandé, les constats sur les droits NTFS.
 /// </summary>
 public sealed class FileSystemScanner
 {
     private const int TopListSize = 50;
     private const int ProgressReportIntervalMs = 250;
+
+    private readonly IReadOnlyList<IAuditRule> _auditRules;
+
+    public FileSystemScanner(IReadOnlyList<IAuditRule>? auditRules = null)
+    {
+        _auditRules = auditRules ?? new IAuditRule[]
+        {
+            new PathLengthRule(),
+            new InvalidCharactersRule(),
+            new InvalidNameRule(),
+            new BlockedFileTypeRule(),
+            new FileSizeRule(),
+            new FolderDepthRule(),
+        };
+    }
 
     public ScanResult Scan(
         ScanOptions options,
@@ -34,6 +51,7 @@ public sealed class FileSystemScanner
         var largestFolders = new List<FileSystemNode>(TopListSize + 1);
         var emptyFolders = new List<FileSystemNode>();
         var permissionFindings = new List<PermissionFinding>();
+        var auditIssues = new List<AuditIssue>();
 
         long totalFiles = 0;
         long totalFolders = 0;
@@ -66,6 +84,18 @@ public sealed class FileSystemScanner
             };
 
             totalFolders++;
+
+            // La racine scannée elle-même n'est pas auditée : comme dans un chemin relatif, où elle ne
+            // compte pour aucun caractère, son propre nom n'entre pas dans les règles ci-dessous, qui ne
+            // portent que sur les éléments qui deviendront des fichiers/dossiers de la bibliothèque
+            // SharePoint de destination.
+            if (relativePath.Length > 0)
+            {
+                foreach (var rule in _auditRules)
+                {
+                    auditIssues.AddRange(rule.Evaluate(node, options));
+                }
+            }
 
             if (analyzePermissions)
             {
@@ -140,6 +170,11 @@ public sealed class FileSystemScanner
 
                     totalFiles++;
 
+                    foreach (var rule in _auditRules)
+                    {
+                        auditIssues.AddRange(rule.Evaluate(fileNode, options));
+                    }
+
                     var rawExtension = Path.GetExtension(fileNode.Name);
                     var extension = string.IsNullOrEmpty(rawExtension) ? "(sans extension)" : rawExtension.ToLowerInvariant();
                     extensionStats.TryGetValue(extension, out var stats);
@@ -169,6 +204,8 @@ public sealed class FileSystemScanner
                     });
                 }
             }
+
+            auditIssues.AddRange(DuplicateNameRule.Evaluate(node.Children));
 
             node.Children.Sort((a, b) => b.SizeInBytes.CompareTo(a.SizeInBytes));
             return node;
@@ -201,6 +238,7 @@ public sealed class FileSystemScanner
             LargestFolders = largestFolders,
             EmptyFolders = emptyFolders,
             PermissionFindings = permissionFindings,
+            AuditIssues = auditIssues,
             OldestFileModifiedUtc = oldest,
             NewestFileModifiedUtc = newest,
         };

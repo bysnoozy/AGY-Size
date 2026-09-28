@@ -1,13 +1,27 @@
 # AGY-Size
 
 Application de bureau (.NET 8 / Avalonia UI) d'analyse d'espace disque façon **TreeSize**, avec en
-plus une **revue des droits d'accès NTFS** et une **partie journal (logs)** complète — thème gris et
-bleu, aux couleurs d'AGYTEK.
+plus un **audit de compatibilité pour une migration SharePoint Online / OneDrive**, une **revue des
+droits d'accès NTFS** et une **partie journal (logs)** complète — thème gris et bleu, aux couleurs
+d'AGYTEK.
+
+AGY-Size regroupe en une seule application ce qui était auparavant réparti entre deux outils : le
+scanner de tailles/droits/logs d'origine, et l'audit de migration SharePoint du projet AuditFiles
+(désormais fusionné ici — voir « Audit SharePoint » ci-dessous).
 
 ## Fonctionnalités
 
 - **Arborescence des tailles** : scan récursif d'un dossier avec tailles agrégées par dossier
   (fichiers/sous-dossiers), triées par taille décroissante, barre de progression par élément.
+- **Audit de migration SharePoint Online / OneDrive** (évalué automatiquement à chaque scan, sans
+  case à cocher séparée) : chemins trop longs, caractères interdits, noms structurellement invalides
+  (espace en début/fin, point final, points consécutifs, nom trop long), noms réservés (périphériques
+  Windows, fichiers système SharePoint, dossier "Forms" à la racine), types de fichiers bloqués à
+  l'upload, fichiers dépassant la limite de taille, dossiers trop imbriqués, doublons de noms ne
+  différant que par la casse. Seuils alignés sur la documentation Microsoft, ajustables dans le code
+  (`AgySize.Core.Audit.Rules.SharePointLimits` / `ScanOptions`). Export dédié en CSV, section propre
+  dans le rapport HTML, et **rapport PDF client** prêt à remettre (synthèse + action recommandée et
+  liste complète par catégorie d'anomalie).
 - **Treemap** : visualisation en rectangles proportionnels à la taille, avec navigation par clic
   pour descendre dans un sous-dossier (algorithme "squarified treemap").
 - **Répartition par type de fichier** (extension, nombre de fichiers, taille).
@@ -26,14 +40,15 @@ bleu, aux couleurs d'AGYTEK.
   - fichier de log persistant sur disque (`%LocalAppData%\AGY-Size\logs\agysize.log`), qui accumule
     l'historique entre les lancements ;
   - export du journal affiché vers un fichier texte.
-- **Export** CSV (arborescence complète) et HTML (rapport de synthèse : volumétrie, plus gros
-  éléments, répartition par type, constats sur les droits).
+- **Export** CSV (arborescence complète, ou anomalies SharePoint seules) et HTML (rapport de
+  synthèse : volumétrie, plus gros éléments, répartition par type, anomalies SharePoint, constats sur
+  les droits), en plus du rapport PDF client dédié à l'audit SharePoint.
 - **Démarrage automatique avec Windows**, activable/désactivable depuis l'application (clé de
   registre `Run` de l'utilisateur courant, sans droits administrateur).
 - **Scans planifiés** : bouton "Planifier" qui enregistre une tâche quotidienne dans le
   Planificateur de tâches Windows, exécutant `AgySize.Cli` et exportant un rapport HTML.
 - **Ligne de commande** (`AgySize.Cli`) pour scripter un scan : `agysize scan <dossier> [--csv f]
-  [--html f] [--permissions]`.
+  [--html f] [--audit-csv f] [--audit-pdf f] [--permissions]`.
 
 L'application cible avant tout **Windows** (ACL NTFS, registre, corbeille, planificateur de tâches),
 mais s'appuie sur Avalonia UI plutôt que WPF afin de pouvoir être compilée et testée en mode
@@ -47,13 +62,13 @@ proprement ailleurs.
 AgySize.sln
 src/
   AgySize.Core/    Bibliothèque .NET 8 (multiplateforme) : scanner, arbre de tailles, doublons,
-                    opérations fichiers, droits NTFS, logs, exports CSV/HTML, démarrage auto,
-                    planification.
+                    opérations fichiers, droits NTFS, logs, audit SharePoint (Audit/Rules), exports
+                    CSV/HTML/PDF, démarrage auto, planification.
   AgySize.App/      Application de bureau Avalonia UI (net8.0) qui s'appuie sur AgySize.Core.
   AgySize.Cli/      Utilitaire en ligne de commande (scans scriptés/planifiés).
 tests/
-  AgySize.Core.Tests/  Tests unitaires (xUnit) du scanner, des doublons, des opérations fichiers et
-                        des exports.
+  AgySize.Core.Tests/  Tests unitaires (xUnit) du scanner, des règles d'audit SharePoint, des
+                        doublons, des opérations fichiers et des exports (dont le PDF client).
 installer/          Projet WiX v4 pour un installeur .msi (voir installer/README.md — expérimental).
 assets/             Logo AGYTEK (voir assets/README.md pour l'intégrer).
 ```
@@ -102,6 +117,10 @@ cocher "Démarrer avec Windows"), en plus de celui déjà configuré par l'insta
 ## Limites connues et pistes futures
 
 - Le scan lit les métadonnées du système de fichiers local (ou d'un partage réseau monté).
+- Microsoft fait évoluer les règles de compatibilité SharePoint/OneDrive (ex. `#`/`%` étaient bloqués
+  par défaut et sont désormais autorisés) : vérifiez les seuils dans
+  `AgySize.Core.Audit.Rules.SharePointLimits` / `ScanOptions` sur la documentation Microsoft 365 à
+  jour avant de vous fier au rapport pour une décision de migration réelle.
 - La revue des droits NTFS ne fonctionne que sous Windows ; elle est désactivée par défaut (case à
   cocher) car elle ralentit sensiblement le scan sur de grosses arborescences.
 - Après une suppression/déplacement effectué depuis un onglet autre que "Arborescence" (ex. "Plus

@@ -5,13 +5,17 @@ using AgySize.Core.Scanning;
 
 if (args.Length == 0 || args[0] != "scan" || args.Length < 2)
 {
-    Console.WriteLine("Usage : agysize scan <dossier> [--csv fichier.csv] [--html fichier.html] [--permissions]");
+    Console.WriteLine(
+        "Usage : agysize scan <dossier> [--csv fichier.csv] [--html fichier.html] " +
+        "[--audit-csv fichier.csv] [--audit-pdf fichier.pdf] [--permissions]");
     return 1;
 }
 
 var rootPath = args[1];
 string? csvPath = null;
 string? htmlPath = null;
+string? auditCsvPath = null;
+string? auditPdfPath = null;
 var analyzePermissions = false;
 
 for (var i = 2; i < args.Length; i++)
@@ -23,6 +27,12 @@ for (var i = 2; i < args.Length; i++)
             break;
         case "--html" when i + 1 < args.Length:
             htmlPath = args[++i];
+            break;
+        case "--audit-csv" when i + 1 < args.Length:
+            auditCsvPath = args[++i];
+            break;
+        case "--audit-pdf" when i + 1 < args.Length:
+            auditPdfPath = args[++i];
             break;
         case "--permissions":
             analyzePermissions = true;
@@ -50,6 +60,7 @@ catch (DirectoryNotFoundException ex)
 Console.WriteLine($"Fichiers : {result.RootNode.FileCount:N0}");
 Console.WriteLine($"Dossiers : {result.RootNode.FolderCount:N0}");
 Console.WriteLine($"Taille totale : {result.RootNode.SizeInBytes:N0} octets");
+Console.WriteLine($"Anomalies SharePoint : {result.AuditIssues.Count:N0}");
 
 if (csvPath is not null)
 {
@@ -61,6 +72,25 @@ if (htmlPath is not null)
 {
     HtmlReportWriter.WriteReport(result, htmlPath);
     Console.WriteLine($"Export HTML : {htmlPath}");
+}
+
+if (auditCsvPath is not null)
+{
+    CsvReportWriter.WriteAuditIssues(result, auditCsvPath);
+    Console.WriteLine($"Export anomalies CSV : {auditCsvPath}");
+}
+
+if (auditPdfPath is not null)
+{
+    try
+    {
+        PdfReportWriter.WriteClientReport(result, auditPdfPath);
+        Console.WriteLine($"Rapport PDF client : {auditPdfPath}");
+    }
+    catch (InvalidOperationException ex)
+    {
+        Console.Error.WriteLine($"Impossible de générer le PDF : {ex.Message}");
+    }
 }
 
 return 0;
