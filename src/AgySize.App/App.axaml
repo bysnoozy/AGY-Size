@@ -4,5 +4,9 @@
              RequestedThemeVariant="Default">
     <Application.Styles>
         <FluentTheme />
+        <!-- Sans cette ligne, le contrôle DataGrid (utilisé par la plupart des onglets : types de
+             fichiers, plus gros éléments, fichiers anciens, doublons, dossiers vides, droits d'accès,
+             audit SharePoint, journal) n'a aucun style par défaut et ne s'affiche pas correctement. -->
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
     </Application.Styles>
 </Application>
