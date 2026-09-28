@@ -72,12 +72,14 @@ public class AuditRulesTests : IDisposable
     public void InvalidNameRule_FlagsTrailingSpaceAndPeriod()
     {
         Directory.CreateDirectory(Path.Combine(_tempRoot, "trailing dot."));
-        File.WriteAllText(Path.Combine(_tempRoot, "trailing space .txt"), "x");
+        // Le nom complet (extension comprise) doit se terminer par un espace : "report .txt" se
+        // termine par 't', pas par un espace, seul "report.txt " (espace après l'extension) qualifie.
+        File.WriteAllText(Path.Combine(_tempRoot, "report.txt "), "x");
 
         var result = Scan();
 
         Assert.Contains(result.AuditIssues, i => i.Type == AuditIssueType.NameEndsWithPeriod && i.RelativePath == "trailing dot.");
-        Assert.Contains(result.AuditIssues, i => i.Type == AuditIssueType.NameStartsOrEndsWithSpace && i.RelativePath == "trailing space .txt");
+        Assert.Contains(result.AuditIssues, i => i.Type == AuditIssueType.NameStartsOrEndsWithSpace && i.RelativePath == "report.txt ");
     }
 
     [Fact]
