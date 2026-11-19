@@ -6,6 +6,9 @@
          les composants générés par Heat restent 32 bits alors qu'ils sont copiés dans
          ProgramFiles64Folder, ce que le validateur ICE80 rejette. -->
     <Platform>x64</Platform>
+    <!-- Version issue de Directory.Build.props : un MSI de version supérieure remplace l'ancien
+         (MajorUpgrade) au lieu de s'installer à côté. -->
+    <DefineConstants>ProductVersion=$(Version)</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

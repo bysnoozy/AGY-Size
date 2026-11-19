@@ -25,6 +25,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Title = $"AGY-Size {AgySize.Core.AppVersion.Display} — Espace disque, droits et journal";
         Treemap.NodeClicked += (_, node) => ViewModel.NavigateTreemap(node);
 
         Tree.ContextRequested += (_, _) => _contextSelectionProvider = () =>

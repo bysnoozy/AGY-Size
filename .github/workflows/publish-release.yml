@@ -16,6 +16,8 @@ jobs:
     env:
       CODE_SIGNING_PFX_BASE64: ${{ secrets.CODE_SIGNING_PFX_BASE64 }}
       CODE_SIGNING_PASSWORD: ${{ secrets.CODE_SIGNING_PASSWORD }}
+      # Numéro de version des binaires publiés : 1.1.<numéro de ce run> (voir Directory.Build.props).
+      AGY_BUILD_NUMBER: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
 
@@ -24,13 +26,13 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Publish AgySize.App (exécutable autonome)
-        run: dotnet publish src/AgySize.App/AgySize.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-x64
+        run: dotnet publish src/AgySize.App/AgySize.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-x64 -p:AgyBuildNumber=${{ env.AGY_BUILD_NUMBER }}
 
       - name: Publish AgySize.Cli (pour les scans planifiés)
-        run: dotnet publish src/AgySize.Cli/AgySize.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-x64
+        run: dotnet publish src/AgySize.Cli/AgySize.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-x64 -p:AgyBuildNumber=${{ env.AGY_BUILD_NUMBER }}
 
       - name: Publish app for installer (dossier non compressé)
-        run: dotnet publish src/AgySize.App/AgySize.App.csproj -c Release -r win-x64 --self-contained true -o installer/publish
+        run: dotnet publish src/AgySize.App/AgySize.App.csproj -c Release -r win-x64 --self-contained true -o installer/publish -p:AgyBuildNumber=${{ env.AGY_BUILD_NUMBER }}
 
       - name: Sign binaries (si le certificat AGYTEK est configuré)
         # Une condition if: ne peut pas référencer le contexte "secrets" directement (limitation
@@ -50,7 +52,7 @@ jobs:
         run: wix extension add WixToolset.UI.wixext/4.0.5
 
       - name: Build MSI
-        run: dotnet build AgySize.Installer.wixproj -c Release -p:PublishDir=publish
+        run: dotnet build AgySize.Installer.wixproj -c Release -p:PublishDir=publish -p:AgyBuildNumber=${{ env.AGY_BUILD_NUMBER }}
         working-directory: installer
 
       - name: Sign MSI (si le certificat AGYTEK est configuré)
@@ -67,16 +69,22 @@ jobs:
           Compress-Archive -Path publish/win-x64/* -DestinationPath releases/AGY-Size-portable-win-x64.zip -Force
           $msi = Get-ChildItem -Path installer/bin -Filter *.msi -Recurse | Select-Object -First 1
           Copy-Item $msi.FullName -Destination releases/AGY-Size-Setup.msi -Force
+          $version = "1.1.${{ env.AGY_BUILD_NUMBER }}"
+          $commit = "${{ github.sha }}".Substring(0, 7)
+          Set-Content -Path releases/version.txt -Encoding utf8 -Value @(
+            "AGY-Size $version ($commit)",
+            "Publié le $(Get-Date -Format 'yyyy-MM-dd HH:mm') UTC"
+          )
 
       - name: Commit and push release binaries
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add releases/AGY-Size-Setup.msi releases/AGY-Size-portable-win-x64.zip
+          git add releases/AGY-Size-Setup.msi releases/AGY-Size-portable-win-x64.zip releases/version.txt
           if git diff --cached --quiet; then
             echo "Aucun changement binaire à commiter."
           else
-            git commit -m "chore: update release binaries (built from ${{ github.sha }}) [skip ci]"
+            git commit -m "chore: release AGY-Size 1.1.${{ env.AGY_BUILD_NUMBER }} (built from ${{ github.sha }}) [skip ci]"
             git push
           fi

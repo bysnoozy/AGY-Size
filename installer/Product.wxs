@@ -3,7 +3,7 @@
 
   <Package Name="AGY-Size"
            Manufacturer="AGYTEK"
-           Version="1.0.0"
+           Version="$(var.ProductVersion)"
            UpgradeCode="9f0c9c9a-6d0a-4a8b-9a8f-5a1b8a5b7a11"
            Compressed="yes">
 

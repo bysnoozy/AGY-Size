@@ -1,10 +1,18 @@
+using AgySize.Core;
 using AgySize.Core.Logging;
 using AgySize.Core.Models;
 using AgySize.Core.Reporting;
 using AgySize.Core.Scanning;
 
+if (args.Length > 0 && args[0] is "--version" or "-v")
+{
+    Console.WriteLine($"AGY-Size {AppVersion.Display}");
+    return 0;
+}
+
 if (args.Length == 0 || args[0] != "scan" || args.Length < 2)
 {
+    Console.WriteLine($"AGY-Size {AppVersion.Display}");
     Console.WriteLine(
         "Usage : agysize scan <dossier> [--csv fichier.csv] [--html fichier.html] " +
         "[--audit-csv fichier.csv] [--audit-pdf fichier.pdf] [--permissions]");

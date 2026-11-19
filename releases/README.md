@@ -17,3 +17,10 @@ Ils ne sont **pas** régénérés automatiquement à chaque commit (pour ne pas 
    repo"**.
 2. Cliquer sur **"Run workflow"** (branche `main`).
 3. Une fois le run terminé, les fichiers de ce dossier sont mis à jour par un commit automatique.
+
+## Vérifier si votre version est à jour
+
+`releases/version.txt` indique la version des binaires actuellement publiés (ex. `AGY-Size 1.1.12
+(f8573a5)`). Comparez-la à celle affichée dans l'application (en haut à droite du bandeau bleu, et
+dans la barre de titre) ou renvoyée par `AgySize.Cli.exe --version`. Le dernier chiffre augmente à
+chaque publication ; s'il est inférieur à celui de `version.txt`, retéléchargez les binaires.

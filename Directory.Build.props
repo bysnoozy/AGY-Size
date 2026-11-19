@@ -1,0 +1,10 @@
+<Project>
+  <!-- Source unique du numéro de version, appliquée à tous les projets (App, Cli, Core, installeur).
+       Les binaires publiés dans releases/ reçoivent AgyBuildNumber = numéro du run du workflow
+       publish-release.yml ; toute autre compilation (poste de dev, CI de build) affiche .0. -->
+  <PropertyGroup>
+    <VersionPrefix>1.1</VersionPrefix>
+    <AgyBuildNumber Condition="'$(AgyBuildNumber)' == ''">0</AgyBuildNumber>
+    <Version>$(VersionPrefix).$(AgyBuildNumber)</Version>
+  </PropertyGroup>
+</Project>

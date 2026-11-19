@@ -12,6 +12,7 @@
                 <Image Source="avares://AgySize.App/Assets/logo.png" Height="28" />
                 <TextBlock Text="AGY-Size" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" />
                 <TextBlock Text="Espace disque · Audit SharePoint · Droits d'accès · Journal" FontSize="13" Foreground="#B9C6DA" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding VersionDisplay}" FontSize="12" Foreground="#B9C6DA" VerticalAlignment="Center" Margin="16,0,0,0" />
             </StackPanel>
         </Border>
 

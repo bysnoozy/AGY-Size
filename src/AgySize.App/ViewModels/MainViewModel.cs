@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using AgySize.Core;
 using AgySize.Core.Audit.Remediation;
 using AgySize.Core.Logging;
 using AgySize.Core.Models;
@@ -97,7 +98,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         FindDuplicatesCommand = new RelayCommand(async _ => await FindDuplicatesAsync(), _ => CanExport && !IsScanning && !IsFindingDuplicates);
         ScheduleDailyScanCommand = new RelayCommand(_ => ScheduleDailyScan(), _ => CanExport && OperatingSystem.IsWindows());
 
-        _logger.Info("Application", "AGY-Size démarré.");
+        _logger.Info("Application", $"AGY-Size {AppVersion.Display} démarré.");
     }
 
     public ObservableCollection<FileSystemNodeViewModel> TreeRoots { get; } = new();
@@ -133,6 +134,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand FindDuplicatesCommand { get; }
 
     public RelayCommand ScheduleDailyScanCommand { get; }
+
+    public string VersionDisplay => $"Version {AppVersion.Display}";
 
     public string LogFilePath => _fileLogger?.FilePath ?? string.Empty;
 
