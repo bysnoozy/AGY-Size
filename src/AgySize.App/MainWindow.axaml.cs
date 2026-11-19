@@ -7,6 +7,7 @@ using AgySize.App.ViewModels;
 using AgySize.App.Views;
 using AgySize.Core.Models;
 using AgySize.Core.Reporting;
+using AgySize.Core.Sharing;
 
 namespace AgySize.App;
 
@@ -277,6 +278,47 @@ public partial class MainWindow : Window
         catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
             ViewModel.StatusText = $"Export impossible : {ex.Message}";
+        }
+    }
+
+    private async void ExportSharesPdf_Click(object? sender, RoutedEventArgs e)
+    {
+        var result = ViewModel.LastResult;
+        if (result is null)
+        {
+            return;
+        }
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null)
+        {
+            return;
+        }
+
+        var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Exporter le rapport client des partages réseau",
+            SuggestedFileName = $"agysize-rapport-partages-{Environment.MachineName}.pdf",
+            SuggestedStartLocation = await GetDefaultExportFolderAsync(topLevel),
+            FileTypeChoices = new[] { new FilePickerFileType("Rapport PDF") { Patterns = new[] { "*.pdf" } } },
+        });
+
+        if (file is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var shares = ShareReport.Write(result, file.Path.LocalPath);
+            var covered = shares.Count(s => s.IsCovered);
+            ViewModel.StatusText = covered == 0
+                ? $"Rapport enregistré, mais aucun partage trouvé dans le dossier analysé : {file.Path.LocalPath}"
+                : $"Rapport des partages enregistré ({covered} partage(s)) : {file.Path.LocalPath}";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or DllNotFoundException)
+        {
+            ViewModel.StatusText = $"Impossible de générer le rapport des partages : {ex.Message}";
         }
     }
 

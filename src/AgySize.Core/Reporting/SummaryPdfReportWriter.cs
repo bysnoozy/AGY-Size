@@ -142,7 +142,7 @@ public static class SummaryPdfReportWriter
         document.Save(filePath);
     }
 
-    private static void Section(PdfLayoutBuilder b, Fonts f, string title)
+    internal static void Section(PdfLayoutBuilder b, Fonts f, string title)
     {
         b.AddSpace(8);
         b.EnsureSpace(60);
@@ -150,7 +150,7 @@ public static class SummaryPdfReportWriter
         b.AddSpace(2);
     }
 
-    private static void DrawKpiRow(PdfLayoutBuilder b, Fonts f, (string Label, string Value)[] kpis)
+    internal static void DrawKpiRow(PdfLayoutBuilder b, Fonts f, (string Label, string Value)[] kpis)
     {
         const double cardHeight = 44;
         var gfx = b.Graphics;
@@ -171,7 +171,7 @@ public static class SummaryPdfReportWriter
     }
 
     /// <summary>Tableau simple : une ligne par entrée, textes tronqués pour tenir dans leur colonne (pas de retour à la ligne).</summary>
-    private static void DrawTable(PdfLayoutBuilder b, Fonts f, (string Header, double Width)[] columns, IEnumerable<string[]> rows)
+    internal static void DrawTable(PdfLayoutBuilder b, Fonts f, (string Header, double Width)[] columns, IEnumerable<string[]> rows, int leftColumns = 1)
     {
         const double rowHeight = 15;
         var headerBrush = new XSolidBrush(XColor.FromArgb(51, 71, 91));
@@ -191,8 +191,8 @@ public static class SummaryPdfReportWriter
             for (var i = 0; i < columns.Length; i++)
             {
                 var width = columns[i].Width * b.ContentWidth;
-                var alignRight = i > 0;
-                var cell = Fit(g, i < cells.Length ? cells[i] : string.Empty, font, width - 8, keepEnd: i == 0);
+                var alignRight = i >= leftColumns;
+                var cell = Fit(g, i < cells.Length ? cells[i] : string.Empty, font, width - 8, keepEnd: i < leftColumns);
                 g.DrawString(cell, font, text, new XRect(x + 4, y + 2, width - 8, rowHeight - 2),
                     alignRight ? XStringFormats.TopRight : XStringFormats.TopLeft);
                 x += width;
@@ -215,7 +215,7 @@ public static class SummaryPdfReportWriter
     }
 
     /// <summary>Tronque un texte avec "…" pour qu'il tienne dans la largeur donnée ; pour un chemin, garde plutôt la fin (le nom).</summary>
-    private static string Fit(XGraphics gfx, string text, XFont font, double width, bool keepEnd = false)
+    internal static string Fit(XGraphics gfx, string text, XFont font, double width, bool keepEnd = false)
     {
         if (gfx.MeasureString(text, font).Width <= width)
         {
@@ -256,9 +256,9 @@ public static class SummaryPdfReportWriter
         _ => "Info",
     };
 
-    private static string Percent(long part, long total) => $"{part * 100.0 / total:N1} %";
+    internal static string Percent(long part, long total) => $"{part * 100.0 / total:N1} %";
 
-    private static string FormatBytes(long bytes)
+    internal static string FormatBytes(long bytes)
     {
         string[] units = { "o", "Ko", "Mo", "Go", "To" };
         double size = bytes;
@@ -272,7 +272,7 @@ public static class SummaryPdfReportWriter
         return $"{size:N2} {units[unitIndex]}";
     }
 
-    private sealed class Fonts
+    internal sealed class Fonts
     {
         public XFont Title { get; } = new(ClientReportFontResolver.Family, 18, XFontStyleEx.Bold);
         public XFont Section { get; } = new(ClientReportFontResolver.Family, 12, XFontStyleEx.Bold);

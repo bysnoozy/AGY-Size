@@ -68,6 +68,14 @@ scanner de tailles/droits/logs d'origine, et l'audit de migration SharePoint du 
   anciens, 10 plus gros dossiers de premier niveau et fichiers, 10 principaux types de fichiers,
   anomalies SharePoint et constats sur les droits comptés par catégorie, sans liste exhaustive),
   en plus du rapport PDF client dédié à l'audit SharePoint. Le détail complet passe par les CSV.
+- **Rapport partages CLIENT** (PDF) : uniquement ce qui est partagé sur le serveur — chaque partage
+  avec son chemin `\\SERVEUR\Partage`, son dossier local et sa description, son volume (et sa part
+  du total), nombre de fichiers, part de données non modifiées depuis plus d'un an, dernière
+  modification, anomalies SharePoint et ses 5 principaux sous-dossiers ; les partages présents sur
+  le serveur mais hors du dossier analysé sont listés à part. Les partages administratifs (C$,
+  ADMIN$...), SYSVOL/NETLOGON et print$ sont exclus. À lancer **sur le serveur**, en analysant le
+  volume qui héberge les partages (ex. `D:\`) ; si l'analyse porte sur un chemin
+  `\\serveur\partage`, ce partage seul est présenté. En ligne de commande : `--shares-pdf f`.
 - **Démarrage automatique avec Windows**, activable/désactivable depuis l'application (clé de
   registre `Run` de l'utilisateur courant). L'application elle-même nécessite une élévation
   administrateur à chaque lancement (voir ci-dessous) : Windows affichera une invite UAC au
@@ -75,7 +83,7 @@ scanner de tailles/droits/logs d'origine, et l'audit de migration SharePoint du 
 - **Scans planifiés** : bouton "Planifier" qui enregistre une tâche quotidienne dans le
   Planificateur de tâches Windows, exécutant `AgySize.Cli` et exportant un rapport PDF de synthèse.
 - **Ligne de commande** (`AgySize.Cli`) pour scripter un scan : `agysize scan <dossier> [--csv f]
-  [--pdf f] [--audit-csv f] [--audit-pdf f] [--permissions] [--no-mft]`, `agysize --version`.
+  [--pdf f] [--audit-csv f] [--audit-pdf f] [--shares-pdf f] [--permissions] [--no-mft]`, `agysize --version`.
 
 L'application cible avant tout **Windows** (ACL NTFS, registre, corbeille, planificateur de tâches),
 mais s'appuie sur Avalonia UI plutôt que WPF afin de pouvoir être compilée et testée en mode

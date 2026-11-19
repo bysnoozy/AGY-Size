@@ -3,6 +3,7 @@ using AgySize.Core.Logging;
 using AgySize.Core.Models;
 using AgySize.Core.Reporting;
 using AgySize.Core.Scanning;
+using AgySize.Core.Sharing;
 
 if (args.Length > 0 && args[0] is "--version" or "-v")
 {
@@ -15,7 +16,7 @@ if (args.Length == 0 || args[0] != "scan" || args.Length < 2)
     Console.WriteLine($"AGY-Size {AppVersion.Display}");
     Console.WriteLine(
         "Usage : agysize scan <dossier> [--csv fichier.csv] [--pdf fichier.pdf] " +
-        "[--audit-csv fichier.csv] [--audit-pdf fichier.pdf] [--permissions] [--no-mft]");
+        "[--audit-csv fichier.csv] [--audit-pdf fichier.pdf] [--shares-pdf fichier.pdf] [--permissions] [--no-mft]");
     return 1;
 }
 
@@ -24,6 +25,7 @@ string? csvPath = null;
 string? pdfPath = null;
 string? auditCsvPath = null;
 string? auditPdfPath = null;
+string? sharesPdfPath = null;
 var analyzePermissions = false;
 var useMft = true;
 
@@ -48,6 +50,9 @@ for (var i = 2; i < args.Length; i++)
             break;
         case "--audit-pdf" when i + 1 < args.Length:
             auditPdfPath = args[++i];
+            break;
+        case "--shares-pdf" when i + 1 < args.Length:
+            sharesPdfPath = args[++i];
             break;
         case "--permissions":
             analyzePermissions = true;
@@ -96,6 +101,19 @@ if (auditCsvPath is not null)
 {
     CsvReportWriter.WriteAuditIssues(result, auditCsvPath);
     Console.WriteLine($"Export anomalies CSV : {auditCsvPath}");
+}
+
+if (sharesPdfPath is not null)
+{
+    try
+    {
+        var shares = ShareReport.Write(result, sharesPdfPath, options.OldFileThresholdDays);
+        Console.WriteLine($"Rapport des partages ({shares.Count(s => s.IsCovered)} partage(s)) : {sharesPdfPath}");
+    }
+    catch (InvalidOperationException ex)
+    {
+        Console.Error.WriteLine($"Impossible de générer le rapport des partages : {ex.Message}");
+    }
 }
 
 if (auditPdfPath is not null)
