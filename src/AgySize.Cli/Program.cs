@@ -15,7 +15,7 @@ if (args.Length == 0 || args[0] != "scan" || args.Length < 2)
     Console.WriteLine($"AGY-Size {AppVersion.Display}");
     Console.WriteLine(
         "Usage : agysize scan <dossier> [--csv fichier.csv] [--html fichier.html] " +
-        "[--audit-csv fichier.csv] [--audit-pdf fichier.pdf] [--permissions]");
+        "[--audit-csv fichier.csv] [--audit-pdf fichier.pdf] [--permissions] [--no-mft]");
     return 1;
 }
 
@@ -25,6 +25,7 @@ string? htmlPath = null;
 string? auditCsvPath = null;
 string? auditPdfPath = null;
 var analyzePermissions = false;
+var useMft = true;
 
 for (var i = 2; i < args.Length; i++)
 {
@@ -45,6 +46,9 @@ for (var i = 2; i < args.Length; i++)
         case "--permissions":
             analyzePermissions = true;
             break;
+        case "--no-mft":
+            useMft = false;
+            break;
     }
 }
 
@@ -52,7 +56,7 @@ var logger = new InMemoryAuditLogger();
 logger.EntryLogged += (_, entry) => Console.WriteLine($"[{entry.Level}] {entry.Message}");
 
 var scanner = new FileSystemScanner();
-var options = new ScanOptions { RootPath = rootPath, AnalyzePermissions = analyzePermissions };
+var options = new ScanOptions { RootPath = rootPath, AnalyzePermissions = analyzePermissions, UseMftWhenAvailable = useMft };
 
 ScanResult result;
 try

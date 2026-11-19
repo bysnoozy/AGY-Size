@@ -29,6 +29,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private bool _isScanning;
     private bool _isFindingDuplicates;
     private bool _analyzePermissions;
+    private bool _useMft = true;
     private bool _autoStartEnabled;
     private string _scheduleTime = "02:00";
     private string _totalFiles = "-";
@@ -260,6 +261,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set => SetField(ref _analyzePermissions, value);
     }
 
+    /// <summary>Lecture directe de la MFT NTFS quand c'est possible (volume local), repli automatique sinon.</summary>
+    public bool UseMft
+    {
+        get => _useMft;
+        set => SetField(ref _useMft, value);
+    }
+
     public bool AutoStartEnabled
     {
         get => _autoStartEnabled;
@@ -442,11 +450,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
         DuplicateSummary = "-";
         LastResult = null;
 
-        var options = new ScanOptions { RootPath = RootPath, AnalyzePermissions = AnalyzePermissions };
+        var options = new ScanOptions
+        {
+            RootPath = RootPath,
+            AnalyzePermissions = AnalyzePermissions,
+            UseMftWhenAvailable = UseMft,
+        };
         _lastScanMaxNameLength = options.MaxNameLength;
         var progress = new Progress<ScanProgress>(p =>
         {
-            ProgressText = $"{p.FilesScanned:N0} fichiers, {p.FoldersScanned:N0} dossiers analysés";
+            ProgressText = p.Phase ?? $"{p.FilesScanned:N0} fichiers, {p.FoldersScanned:N0} dossiers analysés";
         });
 
         try
@@ -464,8 +477,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
             ApplyResult(result, view);
 
             StatusText = result.Errors.Count > 0
-                ? $"Analyse terminée avec {result.Errors.Count:N0} erreur(s) de lecture."
-                : "Analyse terminée.";
+                ? $"Analyse terminée ({result.ScanMethod}) avec {result.Errors.Count:N0} erreur(s) de lecture."
+                : $"Analyse terminée ({result.ScanMethod}).";
         }
         catch (OperationCanceledException)
         {

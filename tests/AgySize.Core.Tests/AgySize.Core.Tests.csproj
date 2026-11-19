@@ -19,6 +19,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Image NTFS de 4 Mo (créée avec mkntfs/ntfs-3g) pour tester la lecture directe de la MFT. -->
+    <None Include="Fixtures\ntfs-sample.img.gz" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\AgySize.Core\AgySize.Core.csproj" />
   </ItemGroup>
 

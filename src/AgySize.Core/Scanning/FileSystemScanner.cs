@@ -2,6 +2,7 @@ using System.Diagnostics;
 using AgySize.Core.Audit.Rules;
 using AgySize.Core.Logging;
 using AgySize.Core.Models;
+using AgySize.Core.Scanning.Mft;
 using AgySize.Core.Security;
 
 namespace AgySize.Core.Scanning;
@@ -38,11 +39,46 @@ public sealed class FileSystemScanner
         IProgress<ScanProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var rootInfo = new DirectoryInfo(options.RootPath);
-        if (!rootInfo.Exists)
+        if (!Directory.Exists(options.RootPath))
         {
             throw new DirectoryNotFoundException($"Dossier introuvable : {options.RootPath}");
         }
+
+        IScanSource? source = null;
+        if (options.UseMftWhenAvailable && OperatingSystem.IsWindows())
+        {
+            var mftProgress = progress is null
+                ? null
+                : new InlineProgress<long>(records => progress.Report(new ScanProgress
+                {
+                    FilesScanned = 0,
+                    FoldersScanned = 0,
+                    Phase = $"Lecture directe de la MFT : {records:N0} enregistrements lus",
+                }));
+
+            var stopwatch = Stopwatch.StartNew();
+            source = MftScanSource.TryCreate(options.RootPath, mftProgress, cancellationToken, out var reason);
+            if (source is null)
+            {
+                logger.Info("Scanner", $"Lecture directe de la MFT impossible ({reason}) : repli sur l'énumération classique.");
+            }
+            else
+            {
+                logger.Info("Scanner", $"MFT du volume lue en {stopwatch.Elapsed.TotalSeconds:N1} s.");
+            }
+        }
+
+        return Scan(options, source ?? new DirectoryScanSource(options.RootPath), logger, progress, cancellationToken);
+    }
+
+    /// <summary>Analyse l'arborescence fournie par une source d'énumération donnée (classique ou MFT).</summary>
+    public ScanResult Scan(
+        ScanOptions options,
+        IScanSource source,
+        IAuditLogger logger,
+        IProgress<ScanProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
 
         var startedUtc = DateTime.UtcNow;
         var errors = new List<string>();
@@ -67,19 +103,19 @@ public sealed class FileSystemScanner
             logger.Warning("Scanner", "L'analyse des droits NTFS a été demandée mais n'est disponible que sous Windows ; elle est ignorée.");
         }
 
-        logger.Info("Scanner", $"Démarrage de l'analyse de '{options.RootPath}'.");
+        logger.Info("Scanner", $"Démarrage de l'analyse de '{options.RootPath}' ({source.Description}).");
 
-        FileSystemNode ScanDirectory(DirectoryInfo directory, string relativePath, int depth)
+        FileSystemNode ScanDirectory(ScanEntry directory, string relativePath, int depth)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var node = new FileSystemNode
             {
                 Name = directory.Name,
-                FullPath = directory.FullName,
+                FullPath = directory.FullPath,
                 RelativePath = relativePath,
                 Kind = FileSystemNodeKind.Folder,
-                LastWriteUtc = directory.LastWriteTimeUtc,
+                LastWriteUtc = directory.LastWriteUtc,
                 Depth = depth,
             };
 
@@ -102,14 +138,14 @@ public sealed class FileSystemScanner
                 permissionFindings.AddRange(PermissionsAnalyzer.AnalyzeFolder(node));
             }
 
-            FileSystemInfo[] children;
+            IEnumerable<ScanEntry> children;
             try
             {
-                children = directory.GetFileSystemInfos();
+                children = source.GetChildren(directory);
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
             {
-                var message = $"Impossible de lire '{directory.FullName}' : {ex.Message}";
+                var message = $"Impossible de lire '{directory.FullPath}' : {ex.Message}";
                 errors.Add(message);
                 logger.Warning("Scanner", message);
                 return node;
@@ -120,9 +156,9 @@ public sealed class FileSystemScanner
                 cancellationToken.ThrowIfCancellationRequested();
                 var childRelativePath = relativePath.Length == 0 ? child.Name : $"{relativePath}/{child.Name}";
 
-                if (child is DirectoryInfo subDirectory)
+                if (child.IsDirectory)
                 {
-                    var childNode = ScanDirectory(subDirectory, childRelativePath, depth + 1);
+                    var childNode = ScanDirectory(child, childRelativePath, depth + 1);
                     childNode.Parent = node;
                     node.Children.Add(childNode);
                     node.SizeInBytes += childNode.SizeInBytes;
@@ -135,27 +171,22 @@ public sealed class FileSystemScanner
                         emptyFolders.Add(childNode);
                     }
                 }
-                else if (child is FileInfo file)
+                else
                 {
-                    long size;
-                    DateTime lastWrite;
-                    try
+                    if (child.Error is not null)
                     {
-                        size = file.Length;
-                        lastWrite = file.LastWriteTimeUtc;
-                    }
-                    catch (IOException ex)
-                    {
-                        var message = $"Impossible de lire '{file.FullName}' : {ex.Message}";
+                        var message = $"Impossible de lire '{child.FullPath}' : {child.Error}";
                         errors.Add(message);
                         logger.Warning("Scanner", message);
                         continue;
                     }
 
+                    var size = child.Size;
+                    var lastWrite = child.LastWriteUtc;
                     var fileNode = new FileSystemNode
                     {
                         Name = child.Name,
-                        FullPath = file.FullName,
+                        FullPath = child.FullPath,
                         RelativePath = childRelativePath,
                         Kind = FileSystemNodeKind.File,
                         SizeInBytes = size,
@@ -211,7 +242,7 @@ public sealed class FileSystemScanner
             return node;
         }
 
-        var root = ScanDirectory(rootInfo, string.Empty, 0);
+        var root = ScanDirectory(source.Root, string.Empty, 0);
         if (root.IsEmptyFolder)
         {
             emptyFolders.Insert(0, root);
@@ -227,6 +258,7 @@ public sealed class FileSystemScanner
         {
             RootPath = options.RootPath,
             RootNode = root,
+            ScanMethod = source.Description,
             ScanStartedUtc = startedUtc,
             ScanCompletedUtc = DateTime.UtcNow,
             Errors = errors,
@@ -242,6 +274,11 @@ public sealed class FileSystemScanner
             OldestFileModifiedUtc = oldest,
             NewestFileModifiedUtc = newest,
         };
+    }
+
+    private sealed class InlineProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value) => handler(value);
     }
 
     private static void InsertTop(List<FileSystemNode> list, FileSystemNode node)

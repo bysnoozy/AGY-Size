@@ -6,6 +6,9 @@ public sealed class ScanResult
 
     public required FileSystemNode RootNode { get; init; }
 
+    /// <summary>Méthode d'énumération utilisée (lecture directe de la MFT ou énumération classique).</summary>
+    public string ScanMethod { get; init; } = string.Empty;
+
     public required DateTime ScanStartedUtc { get; init; }
 
     public required DateTime ScanCompletedUtc { get; init; }

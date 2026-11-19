@@ -12,6 +12,14 @@ public sealed class ScanOptions
     public bool AnalyzePermissions { get; init; }
 
     /// <summary>
+    /// Sur un volume NTFS local (Windows, droits administrateur), lit directement la table MFT au lieu
+    /// d'énumérer les dossiers un par un — nettement plus rapide sur de gros volumes. Repli
+    /// automatique sur l'énumération classique si ce n'est pas possible (partage réseau, autre
+    /// système de fichiers, droits insuffisants...).
+    /// </summary>
+    public bool UseMftWhenAvailable { get; init; } = true;
+
+    /// <summary>
     /// Ancienneté, en jours, au-delà de laquelle un fichier est listé dans la vue "Fichiers anciens".
     /// </summary>
     public int OldFileThresholdDays { get; init; } = 365;

@@ -10,6 +10,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="AgySize.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Références explicites : ces API (registre, ACL NTFS) sont réintégrées au framework partagé
          depuis .NET 5+, mais on les référence explicitement pour garantir la compilation, y compris
          lorsque le projet est compilé sur Linux/macOS (usage effectif limité à Windows via

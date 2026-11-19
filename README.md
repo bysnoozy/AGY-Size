@@ -13,6 +13,14 @@ scanner de tailles/droits/logs d'origine, et l'audit de migration SharePoint du 
 
 - **Arborescence des tailles** : scan récursif d'un dossier avec tailles agrégées par dossier
   (fichiers/sous-dossiers), triées par taille décroissante, barre de progression par élément.
+- **Lecture directe de la MFT NTFS** (case "Lecture directe MFT", activée par défaut ; `--no-mft`
+  en ligne de commande pour la désactiver) : sur un volume NTFS local, AGY-Size lit la table MFT du
+  volume en quelques lectures séquentielles au lieu de parcourir les dossiers un par un —
+  nettement plus rapide sur un serveur de fichiers. Conditions : AGY-Size lancé **sur la machine
+  qui héberge le volume** (pas via un partage `\\serveur\partage` ni un lecteur réseau), volume
+  NTFS, droits administrateur. Dans tous les autres cas, repli automatique et transparent sur le
+  parcours classique ; la méthode utilisée est indiquée dans la barre d'état et le journal. La MFT
+  ne suit pas les jonctions ni les points de montage de volume situés dans l'arborescence.
 - **Mise en conformité SharePoint Online / OneDrive**, dans une section dédiée et séparée de
   l'analyse d'espace disque (bascule en haut des onglets) : audit évalué automatiquement à chaque
   scan (sans case à cocher séparée) — chemins trop longs, caractères interdits, noms
@@ -65,13 +73,20 @@ scanner de tailles/droits/logs d'origine, et l'audit de migration SharePoint du 
 - **Scans planifiés** : bouton "Planifier" qui enregistre une tâche quotidienne dans le
   Planificateur de tâches Windows, exécutant `AgySize.Cli` et exportant un rapport HTML.
 - **Ligne de commande** (`AgySize.Cli`) pour scripter un scan : `agysize scan <dossier> [--csv f]
-  [--html f] [--audit-csv f] [--audit-pdf f] [--permissions]`.
+  [--html f] [--audit-csv f] [--audit-pdf f] [--permissions] [--no-mft]`, `agysize --version`.
 
 L'application cible avant tout **Windows** (ACL NTFS, registre, corbeille, planificateur de tâches),
 mais s'appuie sur Avalonia UI plutôt que WPF afin de pouvoir être compilée et testée en mode
 headless sur n'importe quelle plateforme (Linux/macOS inclus) ; les fonctionnalités spécifiquement
 Windows sont protégées par des vérifications `OperatingSystem.IsWindows()` et se désactivent
 proprement ailleurs.
+
+## Numéro de version
+
+La version (ex. `1.1.42 (a1b2c3d)`) est affichée en haut à droite de l'application, dans la barre
+de titre, et par `AgySize.Cli.exe --version`. Le dernier numéro correspond au numéro de publication
+des binaires de `releases/` ; comparez-le avec `releases/version.txt` pour savoir si votre copie est
+à jour.
 
 ## Structure du projet
 
@@ -139,7 +154,9 @@ secrets CI et l'installation du certificat de confiance sur les postes AGYTEK.
 
 ## Limites connues et pistes futures
 
-- Le scan lit les métadonnées du système de fichiers local (ou d'un partage réseau monté).
+- Le scan lit les métadonnées du système de fichiers local (ou d'un partage réseau monté). La
+  lecture directe de la MFT n'est possible que sur un volume NTFS local : pour un serveur, lancez
+  AGY-Size sur le serveur lui-même plutôt que depuis un poste via le partage.
 - Microsoft fait évoluer les règles de compatibilité SharePoint/OneDrive (ex. `#`/`%` étaient bloqués
   par défaut et sont désormais autorisés) : vérifiez les seuils dans
   `AgySize.Core.Audit.Rules.SharePointLimits` / `ScanOptions` sur la documentation Microsoft 365 à
