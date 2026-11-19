@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -47,6 +48,25 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private string _autoFixSummary = "-";
     private int _lastScanMaxNameLength = 255;
 
+    private const int MaxLogRows = 2000;
+    private const int LogFlushIntervalMs = 300;
+    private readonly ConcurrentQueue<LogRow> _pendingLogRows = new();
+    private int _logFlushScheduled;
+
+    private ObservableCollection<ExtensionRow> _extensionRows = new();
+    private ObservableCollection<LargestItemRow> _largestFolderRows = new();
+    private ObservableCollection<LargestItemRow> _largestFileRows = new();
+    private ObservableCollection<OldFileRow> _oldFileRows = new();
+    private ObservableCollection<EmptyFolderRow> _emptyFolderRows = new();
+    private ObservableCollection<PermissionFinding> _permissionFindings = new();
+    private ObservableCollection<AuditIssueRow> _filteredAuditIssueRows = new();
+    private ObservableCollection<AuditCategorySummaryRow> _auditCategorySummary = new();
+    private ObservableCollection<DuplicateRow> _duplicateRows = new();
+    private ObservableCollection<LogRow> _logRows = new();
+
+    /// <summary>Toutes les anomalies de la dernière analyse, non filtrées (pas affiché directement).</summary>
+    private List<AuditIssueRow> _allAuditIssueRows = new();
+
     public MainViewModel()
     {
         try
@@ -65,9 +85,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _logger = _memoryLogger;
         }
 
-        _memoryLogger.EntryLogged += (_, entry) => Dispatcher.UIThread.Post(() =>
+        // Les entrées ne sont pas envoyées une par une au thread de l'interface : sur un serveur, un
+        // scan peut produire des dizaines de milliers d'avertissements (accès refusé...) et un appel
+        // Dispatcher par entrée suffisait à saturer l'interface ("AGY-Size ne répond pas").
+        _memoryLogger.EntryLogged += (_, entry) =>
         {
-            LogRows.Add(new LogRow
+            _pendingLogRows.Enqueue(new LogRow
             {
                 Time = entry.TimestampUtc.ToLocalTime().ToString("HH:mm:ss"),
                 Level = entry.Level.ToString(),
@@ -75,11 +98,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 Message = entry.Message,
             });
 
-            while (LogRows.Count > 2000)
+            if (Interlocked.Exchange(ref _logFlushScheduled, 1) == 0)
             {
-                LogRows.RemoveAt(0);
+                _ = Task.Delay(LogFlushIntervalMs).ContinueWith(_ => Dispatcher.UIThread.Post(FlushPendingLogRows));
             }
-        });
+        };
 
         if (OperatingSystem.IsWindows())
         {
@@ -103,29 +126,70 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public ObservableCollection<FileSystemNodeViewModel> TreeRoots { get; } = new();
 
-    public ObservableCollection<ExtensionRow> ExtensionRows { get; } = new();
+    // Les listes de résultats sont remplacées d'un bloc (une seule notification) plutôt que remplies
+    // élément par élément : sur un gros volume, des centaines de milliers d'ajouts individuels à une
+    // collection liée à un DataGrid figeaient l'interface pendant de longues minutes.
 
-    public ObservableCollection<LargestItemRow> LargestFolderRows { get; } = new();
+    public ObservableCollection<ExtensionRow> ExtensionRows
+    {
+        get => _extensionRows;
+        private set => SetField(ref _extensionRows, value);
+    }
 
-    public ObservableCollection<LargestItemRow> LargestFileRows { get; } = new();
+    public ObservableCollection<LargestItemRow> LargestFolderRows
+    {
+        get => _largestFolderRows;
+        private set => SetField(ref _largestFolderRows, value);
+    }
 
-    public ObservableCollection<OldFileRow> OldFileRows { get; } = new();
+    public ObservableCollection<LargestItemRow> LargestFileRows
+    {
+        get => _largestFileRows;
+        private set => SetField(ref _largestFileRows, value);
+    }
 
-    public ObservableCollection<EmptyFolderRow> EmptyFolderRows { get; } = new();
+    public ObservableCollection<OldFileRow> OldFileRows
+    {
+        get => _oldFileRows;
+        private set => SetField(ref _oldFileRows, value);
+    }
 
-    public ObservableCollection<PermissionFinding> PermissionFindings { get; } = new();
+    public ObservableCollection<EmptyFolderRow> EmptyFolderRows
+    {
+        get => _emptyFolderRows;
+        private set => SetField(ref _emptyFolderRows, value);
+    }
 
-    /// <summary>Toutes les anomalies de la dernière analyse, non filtrées.</summary>
-    public ObservableCollection<AuditIssueRow> AuditIssueRows { get; } = new();
+    public ObservableCollection<PermissionFinding> PermissionFindings
+    {
+        get => _permissionFindings;
+        private set => SetField(ref _permissionFindings, value);
+    }
 
-    /// <summary>Sous-ensemble de <see cref="AuditIssueRows"/> après filtre texte / "corrigibles uniquement" : ce que l'onglet affiche.</summary>
-    public ObservableCollection<AuditIssueRow> FilteredAuditIssueRows { get; } = new();
+    /// <summary>Sous-ensemble des anomalies après filtre texte / "corrigibles uniquement" : ce que l'onglet affiche.</summary>
+    public ObservableCollection<AuditIssueRow> FilteredAuditIssueRows
+    {
+        get => _filteredAuditIssueRows;
+        private set => SetField(ref _filteredAuditIssueRows, value);
+    }
 
-    public ObservableCollection<AuditCategorySummaryRow> AuditCategorySummary { get; } = new();
+    public ObservableCollection<AuditCategorySummaryRow> AuditCategorySummary
+    {
+        get => _auditCategorySummary;
+        private set => SetField(ref _auditCategorySummary, value);
+    }
 
-    public ObservableCollection<DuplicateRow> DuplicateRows { get; } = new();
+    public ObservableCollection<DuplicateRow> DuplicateRows
+    {
+        get => _duplicateRows;
+        private set => SetField(ref _duplicateRows, value);
+    }
 
-    public ObservableCollection<LogRow> LogRows { get; } = new();
+    public ObservableCollection<LogRow> LogRows
+    {
+        get => _logRows;
+        private set => SetField(ref _logRows, value);
+    }
 
     public RelayCommand StartScanCommand { get; }
 
@@ -362,19 +426,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
         IsScanning = true;
         StatusText = "Analyse en cours...";
         TreeRoots.Clear();
-        ExtensionRows.Clear();
-        LargestFolderRows.Clear();
-        LargestFileRows.Clear();
-        OldFileRows.Clear();
-        EmptyFolderRows.Clear();
-        PermissionFindings.Clear();
-        AuditIssueRows.Clear();
-        FilteredAuditIssueRows.Clear();
-        AuditCategorySummary.Clear();
+        ExtensionRows = new();
+        LargestFolderRows = new();
+        LargestFileRows = new();
+        OldFileRows = new();
+        EmptyFolderRows = new();
+        PermissionFindings = new();
+        _allAuditIssueRows = new();
+        FilteredAuditIssueRows = new();
+        AuditCategorySummary = new();
         AuditFilterText = string.Empty;
         AuditShowOnlyFixable = false;
         AutoFixSummary = "-";
-        DuplicateRows.Clear();
+        DuplicateRows = new();
         DuplicateSummary = "-";
         LastResult = null;
 
@@ -387,14 +451,20 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            var result = await Task.Run(
-                () => _scanner.Scan(options, _logger, progress, _cancellationTokenSource.Token),
-                _cancellationTokenSource.Token);
+            var token = _cancellationTokenSource.Token;
+            var result = await Task.Run(() => _scanner.Scan(options, _logger, progress, token), token);
 
-            ApplyResult(result, options.OldFileThresholdDays);
+            // Tout le travail de préparation des lignes (tri des fichiers anciens sur l'ensemble des
+            // fichiers, résolution des anomalies vers leurs nœuds...) se fait hors du thread de
+            // l'interface ; seule l'affectation finale des collections y reste.
+            StatusText = "Préparation de l'affichage...";
+            var view = await Task.Run(
+                () => BuildResultView(result, options.OldFileThresholdDays, options.MaxNameLength), token);
+
+            ApplyResult(result, view);
 
             StatusText = result.Errors.Count > 0
-                ? $"Analyse terminée avec {result.Errors.Count} erreur(s) de lecture."
+                ? $"Analyse terminée avec {result.Errors.Count:N0} erreur(s) de lecture."
                 : "Analyse terminée.";
         }
         catch (OperationCanceledException)
@@ -416,7 +486,85 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    private void ApplyResult(ScanResult result, int oldFileThresholdDays)
+    private sealed record ResultView(
+        List<ExtensionRow> Extensions,
+        List<LargestItemRow> LargestFolders,
+        List<LargestItemRow> LargestFiles,
+        List<OldFileRow> OldFiles,
+        List<EmptyFolderRow> EmptyFolders,
+        List<AuditIssueRow> AuditRows);
+
+    private const int MaxOldFileRows = 500;
+
+    private static ResultView BuildResultView(ScanResult result, int oldFileThresholdDays, int maxNameLength)
+    {
+        var rootSize = result.RootNode.SizeInBytes;
+
+        var extensions = result.ExtensionStats.Select(stat => new ExtensionRow
+        {
+            Extension = stat.Extension,
+            FileCount = stat.FileCount.ToString("N0"),
+            Size = FormatBytes(stat.TotalSizeInBytes),
+            SizeInBytes = stat.TotalSizeInBytes,
+        }).ToList();
+
+        static LargestItemRow ToLargestRow(FileSystemNode node, string kind, long rootSize) => new()
+        {
+            RelativePath = node.RelativePath,
+            Kind = kind,
+            Size = FormatBytes(node.SizeInBytes),
+            SizeInBytes = node.SizeInBytes,
+            Node = new FileSystemNodeViewModel(node, rootSize),
+        };
+
+        var largestFolders = result.LargestFolders.Select(f => ToLargestRow(f, "Dossier", rootSize)).ToList();
+        var largestFiles = result.LargestFiles.Select(f => ToLargestRow(f, "Fichier", rootSize)).ToList();
+
+        // Sélection des N plus anciens sans trier l'ensemble des fichiers (des millions sur un serveur).
+        var oldThreshold = DateTime.UtcNow.AddDays(-oldFileThresholdDays);
+        var oldest = new PriorityQueue<FileSystemNode, DateTime>(Comparer<DateTime>.Create((a, b) => b.CompareTo(a)));
+        foreach (var file in result.RootNode.Files())
+        {
+            if (file.LastWriteUtc >= oldThreshold)
+            {
+                continue;
+            }
+
+            if (oldest.Count < MaxOldFileRows)
+            {
+                oldest.Enqueue(file, file.LastWriteUtc);
+            }
+            else if (oldest.TryPeek(out _, out var newestKept) && file.LastWriteUtc < newestKept)
+            {
+                oldest.EnqueueDequeue(file, file.LastWriteUtc);
+            }
+        }
+
+        var oldFiles = oldest.UnorderedItems
+            .Select(e => e.Element)
+            .OrderBy(f => f.LastWriteUtc)
+            .Select(file => new OldFileRow
+            {
+                RelativePath = file.RelativePath,
+                LastModified = file.LastWriteUtc.ToLocalTime().ToString("yyyy-MM-dd"),
+                LastModifiedUtc = file.LastWriteUtc,
+                Size = FormatBytes(file.SizeInBytes),
+                SizeInBytes = file.SizeInBytes,
+                Node = new FileSystemNodeViewModel(file, rootSize),
+            })
+            .ToList();
+
+        var emptyFolders = result.EmptyFolders.Select(folder => new EmptyFolderRow
+        {
+            RelativePath = folder.RelativePath.Length == 0 ? "(racine)" : folder.RelativePath,
+            Node = new FileSystemNodeViewModel(folder, rootSize),
+        }).ToList();
+
+        return new ResultView(extensions, largestFolders, largestFiles, oldFiles, emptyFolders,
+            BuildAuditIssueRows(result, maxNameLength));
+    }
+
+    private void ApplyResult(ScanResult result, ResultView view)
     {
         LastResult = result;
 
@@ -432,91 +580,37 @@ public sealed class MainViewModel : INotifyPropertyChanged
         PermissionFindingCount = result.PermissionFindings.Count.ToString("N0");
         AuditIssueCount = result.AuditIssues.Count.ToString("N0");
 
-        foreach (var stat in result.ExtensionStats)
-        {
-            ExtensionRows.Add(new ExtensionRow
-            {
-                Extension = stat.Extension,
-                FileCount = stat.FileCount.ToString("N0"),
-                Size = FormatBytes(stat.TotalSizeInBytes),
-                SizeInBytes = stat.TotalSizeInBytes,
-            });
-        }
+        ExtensionRows = new(view.Extensions);
+        LargestFolderRows = new(view.LargestFolders);
+        LargestFileRows = new(view.LargestFiles);
+        OldFileRows = new(view.OldFiles);
+        EmptyFolderRows = new(view.EmptyFolders);
+        PermissionFindings = new(result.PermissionFindings);
 
-        foreach (var folder in result.LargestFolders)
-        {
-            LargestFolderRows.Add(new LargestItemRow
-            {
-                RelativePath = folder.RelativePath,
-                Kind = "Dossier",
-                Size = FormatBytes(folder.SizeInBytes),
-                SizeInBytes = folder.SizeInBytes,
-                Node = new FileSystemNodeViewModel(folder, result.RootNode.SizeInBytes),
-            });
-        }
-
-        foreach (var file in result.LargestFiles)
-        {
-            LargestFileRows.Add(new LargestItemRow
-            {
-                RelativePath = file.RelativePath,
-                Kind = "Fichier",
-                Size = FormatBytes(file.SizeInBytes),
-                SizeInBytes = file.SizeInBytes,
-                Node = new FileSystemNodeViewModel(file, result.RootNode.SizeInBytes),
-            });
-        }
-
-        var oldThreshold = DateTime.UtcNow.AddDays(-oldFileThresholdDays);
-        foreach (var file in result.RootNode.Files().Where(f => f.LastWriteUtc < oldThreshold).OrderBy(f => f.LastWriteUtc).Take(500))
-        {
-            OldFileRows.Add(new OldFileRow
-            {
-                RelativePath = file.RelativePath,
-                LastModified = file.LastWriteUtc.ToLocalTime().ToString("yyyy-MM-dd"),
-                LastModifiedUtc = file.LastWriteUtc,
-                Size = FormatBytes(file.SizeInBytes),
-                SizeInBytes = file.SizeInBytes,
-                Node = new FileSystemNodeViewModel(file, result.RootNode.SizeInBytes),
-            });
-        }
-
-        foreach (var folder in result.EmptyFolders)
-        {
-            EmptyFolderRows.Add(new EmptyFolderRow
-            {
-                RelativePath = folder.RelativePath.Length == 0 ? "(racine)" : folder.RelativePath,
-                Node = new FileSystemNodeViewModel(folder, result.RootNode.SizeInBytes),
-            });
-        }
-
-        foreach (var finding in result.PermissionFindings)
-        {
-            PermissionFindings.Add(finding);
-        }
-
-        BuildAuditIssueRows(result);
+        _allAuditIssueRows = view.AuditRows;
+        RebuildAuditCategorySummary();
+        RefreshAuditFilteredView();
     }
 
     /// <summary>
     /// Construit les lignes de l'onglet "Mise en conformité SharePoint" à partir des anomalies brutes
     /// du scan : regroupe par chemin pour retrouver le nœud réel une seule fois et calculer une
     /// suggestion de correction tenant compte de toutes les anomalies mécaniques cumulées sur ce nom
-    /// (voir <see cref="NameSanitizer"/>), puis construit le récapitulatif par catégorie.
+    /// (voir <see cref="NameSanitizer"/>).
     /// </summary>
-    private void BuildAuditIssueRows(ScanResult result)
+    private static List<AuditIssueRow> BuildAuditIssueRows(ScanResult result, int maxNameLength)
     {
+        var rows = new List<AuditIssueRow>(result.AuditIssues.Count);
         foreach (var group in result.AuditIssues.GroupBy(i => i.RelativePath))
         {
             var node = result.RootNode.FindByRelativePath(group.Key);
-            var types = group.Select(i => i.Type).ToList();
             var suggestedName = node is not null
-                ? NameSanitizer.SuggestFixedName(node.Name, types, _lastScanMaxNameLength)
+                ? NameSanitizer.SuggestFixedName(node.Name, group.Select(i => i.Type), maxNameLength)
                 : null;
 
             foreach (var issue in group)
             {
-                AuditIssueRows.Add(new AuditIssueRow
+                rows.Add(new AuditIssueRow
                 {
                     Type = issue.Type,
                     Severity = issue.Severity,
@@ -529,39 +623,33 @@ public sealed class MainViewModel : INotifyPropertyChanged
             }
         }
 
-        RebuildAuditCategorySummary();
-        RefreshAuditFilteredView();
+        return rows;
     }
 
-    /// <summary>Reconstruit le récapitulatif par catégorie à partir de <see cref="AuditIssueRows"/> (appelé après le scan et après chaque correction, pour que les compteurs restent à jour).</summary>
+    /// <summary>Reconstruit le récapitulatif par catégorie (après le scan et après chaque correction, pour que les compteurs restent à jour).</summary>
     private void RebuildAuditCategorySummary()
     {
-        AuditCategorySummary.Clear();
-
         var byCategory = new Dictionary<AuditIssueType, (int Count, int AutoFixable)>();
-        foreach (var row in AuditIssueRows)
+        foreach (var row in _allAuditIssueRows)
         {
             var current = byCategory.TryGetValue(row.Type, out var existing) ? existing : (Count: 0, AutoFixable: 0);
             byCategory[row.Type] = (current.Count + 1, current.AutoFixable + (row.AutoFixable ? 1 : 0));
         }
 
-        foreach (var (type, stats) in byCategory.OrderByDescending(kv => kv.Value.Count))
-        {
-            AuditCategorySummary.Add(new AuditCategorySummaryRow
+        AuditCategorySummary = new(byCategory
+            .OrderByDescending(kv => kv.Value.Count)
+            .Select(kv => new AuditCategorySummaryRow
             {
-                TypeDisplay = AuditIssueTypeDisplay.For(type),
-                Count = stats.Count,
-                AutoFixableCount = stats.AutoFixable,
-            });
-        }
+                TypeDisplay = AuditIssueTypeDisplay.For(kv.Key),
+                Count = kv.Value.Count,
+                AutoFixableCount = kv.Value.AutoFixable,
+            }));
     }
 
-    /// <summary>Réapplique le filtre texte / "corrigibles uniquement" sur <see cref="AuditIssueRows"/>.</summary>
+    /// <summary>Réapplique le filtre texte / "corrigibles uniquement" sur l'ensemble des anomalies.</summary>
     public void RefreshAuditFilteredView()
     {
-        FilteredAuditIssueRows.Clear();
-
-        IEnumerable<AuditIssueRow> rows = AuditIssueRows;
+        IEnumerable<AuditIssueRow> rows = _allAuditIssueRows;
 
         if (AuditShowOnlyFixable)
         {
@@ -577,33 +665,28 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 r.TypeDisplay.Contains(needle, StringComparison.OrdinalIgnoreCase));
         }
 
-        foreach (var row in rows)
-        {
-            FilteredAuditIssueRows.Add(row);
-        }
-
+        FilteredAuditIssueRows = new(rows);
         OnPropertyChanged(nameof(CanAutoFixVisible));
         UpdateAutoFixSummary();
     }
 
     private void UpdateAutoFixSummary()
     {
-        var itemsTotal = AuditIssueRows.Select(r => r.RelativePath).Distinct().Count();
-        var fixableCount = AuditIssueRows.Where(r => r.AutoFixable).Select(r => r.RelativePath).Distinct().Count();
-        AutoFixSummary = AuditIssueRows.Count == 0
+        var itemsTotal = _allAuditIssueRows.Select(r => r.RelativePath).Distinct().Count();
+        var fixableCount = _allAuditIssueRows.Where(r => r.AutoFixable).Select(r => r.RelativePath).Distinct().Count();
+        AutoFixSummary = _allAuditIssueRows.Count == 0
             ? "Aucune anomalie détectée."
             : $"{fixableCount:N0} élément(s) sur {itemsTotal:N0} corrigible(s) automatiquement (renommage).";
     }
 
     /// <summary>
     /// Applique la correction automatique (renommage) à chaque élément distinct représenté par les
-    /// lignes fournies, puis retire de <see cref="AuditIssueRows"/> toutes les lignes partageant le
-    /// même chemin d'origine (elles sont résolues ensemble par un seul renommage). Renvoie le nombre
-    /// d'éléments effectivement corrigés.
+    /// lignes fournies, puis retire toutes les lignes partageant le même chemin d'origine (elles sont
+    /// résolues ensemble par un seul renommage). Renvoie le nombre d'éléments effectivement corrigés.
     /// </summary>
     public int AutoFixRows(IReadOnlyList<AuditIssueRow> rows)
     {
-        var fixedCount = 0;
+        var fixedPaths = new HashSet<string>(StringComparer.Ordinal);
         var failedPaths = new List<string>();
 
         foreach (var row in rows.Where(r => r.AutoFixable).DistinctBy(r => r.RelativePath))
@@ -611,13 +694,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             try
             {
                 var finalName = FileOperations.Rename(row.Node!, row.SuggestedName!);
-                var originalPath = row.RelativePath;
-                foreach (var stale in AuditIssueRows.Where(r => r.RelativePath == originalPath).ToList())
-                {
-                    AuditIssueRows.Remove(stale);
-                }
-
-                fixedCount++;
+                fixedPaths.Add(row.RelativePath);
                 _logger.Info("Conformité SharePoint", $"'{row.Node!.FullPath}' renommé en '{finalName}'.");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -627,15 +704,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
             }
         }
 
+        // Un seul passage sur la liste, au lieu d'une recherche par élément corrigé (quadratique sur
+        // une correction en masse de milliers d'éléments).
+        _allAuditIssueRows.RemoveAll(r => fixedPaths.Contains(r.RelativePath));
+
         RebuildAuditCategorySummary();
         RefreshAuditFilteredView();
-        AuditIssueCount = AuditIssueRows.Count.ToString("N0");
+        AuditIssueCount = _allAuditIssueRows.Count.ToString("N0");
 
         StatusText = failedPaths.Count == 0
-            ? $"{fixedCount} élément(s) corrigé(s). Relancez une analyse pour un audit à jour."
-            : $"{fixedCount} élément(s) corrigé(s), {failedPaths.Count} échec(s) (voir le journal).";
+            ? $"{fixedPaths.Count} élément(s) corrigé(s). Relancez une analyse pour un audit à jour."
+            : $"{fixedPaths.Count} élément(s) corrigé(s), {failedPaths.Count} échec(s) (voir le journal).";
 
-        return fixedCount;
+        return fixedPaths.Count;
     }
 
     private async Task FindDuplicatesAsync()
@@ -645,8 +726,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return;
         }
 
+        var result = LastResult;
         IsFindingDuplicates = true;
-        DuplicateRows.Clear();
+        DuplicateRows = new();
         StatusText = "Recherche de doublons en cours...";
         ProgressText = string.Empty;
 
@@ -657,30 +739,33 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 ProgressText = $"{p.FilesHashed:N0} / {p.TotalFiles:N0} fichiers comparés";
             });
 
-            var groups = await Task.Run(() => DuplicateFinder.FindDuplicates(LastResult.RootNode, _logger, progress));
-
-            var groupIndex = 0;
-            long wastedTotal = 0;
-            foreach (var group in groups)
+            var (rows, groupCount, wastedTotal) = await Task.Run(() =>
             {
-                groupIndex++;
-                wastedTotal += group.WastedBytes;
-                foreach (var file in group.Files)
+                var groups = DuplicateFinder.FindDuplicates(result.RootNode, _logger, progress);
+                var list = new List<DuplicateRow>();
+                long wasted = 0;
+                var groupIndex = 0;
+                foreach (var group in groups)
                 {
-                    DuplicateRows.Add(new DuplicateRow
+                    groupIndex++;
+                    wasted += group.WastedBytes;
+                    list.AddRange(group.Files.Select(file => new DuplicateRow
                     {
                         Groupe = $"#{groupIndex}",
                         RelativePath = file.RelativePath,
                         Size = FormatBytes(file.SizeInBytes),
                         SizeInBytes = file.SizeInBytes,
-                        Node = new FileSystemNodeViewModel(file, LastResult.RootNode.SizeInBytes),
-                    });
+                        Node = new FileSystemNodeViewModel(file, result.RootNode.SizeInBytes),
+                    }));
                 }
-            }
 
-            DuplicateSummary = groups.Count == 0
+                return (list, groups.Count, wasted);
+            });
+
+            DuplicateRows = new(rows);
+            DuplicateSummary = groupCount == 0
                 ? "Aucun doublon trouvé."
-                : $"{groups.Count:N0} groupe(s) de doublons, {FormatBytes(wastedTotal)} récupérables.";
+                : $"{groupCount:N0} groupe(s) de doublons, {FormatBytes(wastedTotal)} récupérables.";
             StatusText = "Recherche de doublons terminée.";
             _logger.Info("Doublons", DuplicateSummary);
         }
@@ -694,6 +779,36 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             IsFindingDuplicates = false;
             ProgressText = string.Empty;
+        }
+    }
+
+    private void FlushPendingLogRows()
+    {
+        // Remis à zéro avant de vider la file : une entrée arrivée pendant le vidage replanifie un
+        // nouveau passage au lieu d'être oubliée.
+        Volatile.Write(ref _logFlushScheduled, 0);
+
+        var batch = new List<LogRow>();
+        while (_pendingLogRows.TryDequeue(out var row))
+        {
+            batch.Add(row);
+        }
+
+        if (batch.Count == 0)
+        {
+            return;
+        }
+
+        if (batch.Count > 20 || LogRows.Count + batch.Count > MaxLogRows)
+        {
+            LogRows = new(LogRows.Concat(batch).TakeLast(MaxLogRows));
+        }
+        else
+        {
+            foreach (var row in batch)
+            {
+                LogRows.Add(row);
+            }
         }
     }
 
