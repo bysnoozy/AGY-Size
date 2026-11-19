@@ -40,7 +40,7 @@ scanner de tailles/droits/logs d'origine, et l'audit de migration SharePoint du 
     → "Corriger automatiquement") ou en masse sur tout ce qui est actuellement affiché ; les
     catégories nécessitant une décision humaine (chemin trop long, type bloqué, nom réservé,
     doublon...) restent manuelles, avec un accès direct via "Ouvrir l'emplacement" ;
-  - export dédié en CSV, section propre dans le rapport HTML, et **rapport PDF client** prêt à
+  - export dédié en CSV, ligne de synthèse par catégorie dans le rapport PDF de synthèse, et **rapport PDF client** prêt à
     remettre (synthèse + action recommandée et liste complète par catégorie d'anomalie).
 - **Treemap** : visualisation en rectangles proportionnels à la taille, avec navigation par clic
   pour descendre dans un sous-dossier (algorithme "squarified treemap").
@@ -63,17 +63,19 @@ scanner de tailles/droits/logs d'origine, et l'audit de migration SharePoint du 
   - fichier de log persistant sur disque (`%LocalAppData%\AGY-Size\logs\agysize.log`), qui accumule
     l'historique entre les lancements ;
   - export du journal affiché vers un fichier texte.
-- **Export** CSV (arborescence complète, ou anomalies SharePoint seules) et HTML (rapport de
-  synthèse : volumétrie, plus gros éléments, répartition par type, anomalies SharePoint, constats sur
-  les droits), en plus du rapport PDF client dédié à l'audit SharePoint.
+- **Export** CSV (arborescence complète, ou anomalies SharePoint seules) et **rapport PDF de
+  synthèse** (1 à 2 pages quelle que soit la taille de l'arborescence : chiffres clés, fichiers
+  anciens, 10 plus gros dossiers de premier niveau et fichiers, 10 principaux types de fichiers,
+  anomalies SharePoint et constats sur les droits comptés par catégorie, sans liste exhaustive),
+  en plus du rapport PDF client dédié à l'audit SharePoint. Le détail complet passe par les CSV.
 - **Démarrage automatique avec Windows**, activable/désactivable depuis l'application (clé de
   registre `Run` de l'utilisateur courant). L'application elle-même nécessite une élévation
   administrateur à chaque lancement (voir ci-dessous) : Windows affichera une invite UAC au
   démarrage automatique comme à un lancement manuel.
 - **Scans planifiés** : bouton "Planifier" qui enregistre une tâche quotidienne dans le
-  Planificateur de tâches Windows, exécutant `AgySize.Cli` et exportant un rapport HTML.
+  Planificateur de tâches Windows, exécutant `AgySize.Cli` et exportant un rapport PDF de synthèse.
 - **Ligne de commande** (`AgySize.Cli`) pour scripter un scan : `agysize scan <dossier> [--csv f]
-  [--html f] [--audit-csv f] [--audit-pdf f] [--permissions] [--no-mft]`, `agysize --version`.
+  [--pdf f] [--audit-csv f] [--audit-pdf f] [--permissions] [--no-mft]`, `agysize --version`.
 
 L'application cible avant tout **Windows** (ACL NTFS, registre, corbeille, planificateur de tâches),
 mais s'appuie sur Avalonia UI plutôt que WPF afin de pouvoir être compilée et testée en mode
@@ -95,7 +97,7 @@ AgySize.sln
 src/
   AgySize.Core/    Bibliothèque .NET 8 (multiplateforme) : scanner, arbre de tailles, doublons,
                     opérations fichiers, droits NTFS, logs, audit SharePoint (Audit/Rules), exports
-                    CSV/HTML/PDF, démarrage auto, planification.
+                    CSV/PDF, démarrage auto, planification.
   AgySize.App/      Application de bureau Avalonia UI (net8.0) qui s'appuie sur AgySize.Core.
   AgySize.Cli/      Utilitaire en ligne de commande (scans scriptés/planifiés).
 tests/
@@ -120,7 +122,7 @@ dotnet test tests/AgySize.Core.Tests/AgySize.Core.Tests.csproj
 dotnet run --project src/AgySize.App/AgySize.App.csproj
 
 # Scanner en ligne de commande
-dotnet run --project src/AgySize.Cli/AgySize.Cli.csproj -- scan C:\Partage --html rapport.html
+dotnet run --project src/AgySize.Cli/AgySize.Cli.csproj -- scan C:\Partage --pdf rapport.pdf
 
 # Produire un exécutable Windows autonome (fonctionne même depuis Linux/macOS)
 dotnet publish src/AgySize.App/AgySize.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true

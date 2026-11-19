@@ -41,6 +41,49 @@ public class PdfReportWriterTests
         }
     }
 
+    [Fact]
+    public void WriteSummaryReport_StaysShort_EvenWithManyIssues()
+    {
+        if (!SystemFontAvailable())
+        {
+            return;
+        }
+
+        var sample = BuildSampleResult();
+        var manyIssues = Enumerable.Range(0, 20_000)
+            .Select(i => MakeIssue(AuditIssueType.InvalidCharacterInName, AuditSeverity.Blocking, $"dossier/fichier{i}?.txt"))
+            .Concat(sample.AuditIssues)
+            .ToList();
+        var extensions = Enumerable.Range(0, 40).Select(i => new ExtensionStat($".e{i}", i + 1, (i + 1) * 1000L)).ToList();
+        var result = new ScanResult
+        {
+            RootPath = sample.RootPath,
+            RootNode = sample.RootNode,
+            AuditIssues = manyIssues,
+            Errors = new List<string> { "erreur" },
+            ExtensionStats = extensions,
+            LargestFiles = sample.LargestFiles,
+            LargestFolders = sample.LargestFolders,
+            EmptyFolders = sample.EmptyFolders,
+            PermissionFindings = sample.PermissionFindings,
+            ScanStartedUtc = sample.ScanStartedUtc,
+            ScanCompletedUtc = sample.ScanCompletedUtc,
+        };
+
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".pdf");
+        try
+        {
+            SummaryPdfReportWriter.WriteReport(result, path);
+
+            using var document = PdfReader.Open(path, PdfDocumentOpenMode.Import);
+            Assert.InRange(document.PageCount, 1, 2);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static bool SystemFontAvailable()
     {
         string[] candidates =

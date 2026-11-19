@@ -411,7 +411,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         private set => SetField(ref _treemapPath, value);
     }
 
-    /// <summary>Lu par le code-behind de la vue pour alimenter les exports CSV/HTML.</summary>
+    /// <summary>Lu par le code-behind de la vue pour alimenter les exports CSV/PDF.</summary>
     public ScanResult? LastResult
     {
         get => _lastResult;
@@ -933,7 +933,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             var exportPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "AGY-Size", "rapports", "rapport-planifie.html");
+                "AGY-Size", "rapports", "rapport-planifie.pdf");
 
             ScheduledScanManager.CreateDailyTask("AGY-Size - Scan quotidien", cliPath, RootPath, exportPath, time);
             StatusText = $"Scan quotidien planifié à {time:HH:mm} (tâche Windows 'AGY-Size - Scan quotidien').";

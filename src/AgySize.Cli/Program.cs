@@ -14,14 +14,14 @@ if (args.Length == 0 || args[0] != "scan" || args.Length < 2)
 {
     Console.WriteLine($"AGY-Size {AppVersion.Display}");
     Console.WriteLine(
-        "Usage : agysize scan <dossier> [--csv fichier.csv] [--html fichier.html] " +
+        "Usage : agysize scan <dossier> [--csv fichier.csv] [--pdf fichier.pdf] " +
         "[--audit-csv fichier.csv] [--audit-pdf fichier.pdf] [--permissions] [--no-mft]");
     return 1;
 }
 
 var rootPath = args[1];
 string? csvPath = null;
-string? htmlPath = null;
+string? pdfPath = null;
 string? auditCsvPath = null;
 string? auditPdfPath = null;
 var analyzePermissions = false;
@@ -34,8 +34,14 @@ for (var i = 2; i < args.Length; i++)
         case "--csv" when i + 1 < args.Length:
             csvPath = args[++i];
             break;
+        case "--pdf" when i + 1 < args.Length:
+            pdfPath = args[++i];
+            break;
         case "--html" when i + 1 < args.Length:
-            htmlPath = args[++i];
+            // Ancien rapport HTML (supprimé) : conservé pour les tâches planifiées existantes, qui
+            // reçoivent désormais le rapport PDF de synthèse à côté (même nom, extension .pdf).
+            pdfPath = Path.ChangeExtension(args[++i], ".pdf");
+            Console.WriteLine("--html est remplacé par --pdf : rapport de synthèse PDF généré à la place.");
             break;
         case "--audit-csv" when i + 1 < args.Length:
             auditCsvPath = args[++i];
@@ -80,10 +86,10 @@ if (csvPath is not null)
     Console.WriteLine($"Export CSV : {csvPath}");
 }
 
-if (htmlPath is not null)
+if (pdfPath is not null)
 {
-    HtmlReportWriter.WriteReport(result, htmlPath);
-    Console.WriteLine($"Export HTML : {htmlPath}");
+    SummaryPdfReportWriter.WriteReport(result, pdfPath, options.OldFileThresholdDays);
+    Console.WriteLine($"Rapport PDF de synthèse : {pdfPath}");
 }
 
 if (auditCsvPath is not null)

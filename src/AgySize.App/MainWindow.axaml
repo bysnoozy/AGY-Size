@@ -27,7 +27,8 @@
                 <Button Content="Lancer l'analyse" Width="130" Margin="0,0,8,4" Command="{Binding StartScanCommand}" Background="#4F7CAC" Foreground="White" />
                 <Button Content="Annuler" Width="100" Margin="0,0,8,4" Command="{Binding CancelScanCommand}" />
                 <Button Content="Exporter CSV" Width="120" Margin="0,0,8,4" Click="ExportCsv_Click" IsEnabled="{Binding CanExport}" />
-                <Button Content="Exporter HTML" Width="120" Margin="0,0,8,4" Click="ExportHtml_Click" IsEnabled="{Binding CanExport}" />
+                <Button Content="Exporter PDF" Width="120" Margin="0,0,8,4" Click="ExportSummaryPdf_Click" IsEnabled="{Binding CanExport}"
+                        ToolTip.Tip="Rapport de synthèse (1 à 2 pages) : chiffres clés, plus gros dossiers/fichiers, types de fichiers, conformité SharePoint et droits par catégorie." />
                 <CheckBox Content="Analyser les droits (plus lent)" IsChecked="{Binding AnalyzePermissions}" VerticalAlignment="Center" Margin="8,0,8,4" />
                 <CheckBox Content="Lecture directe MFT (plus rapide)" IsChecked="{Binding UseMft}" VerticalAlignment="Center" Margin="0,0,8,4"
                           ToolTip.Tip="Sur un volume NTFS local, lit directement la table MFT au lieu de parcourir les dossiers un par un. Sans effet sur un partage réseau (UNC ou lecteur réseau) : lancez AGY-Size sur le serveur lui-même. Repli automatique sur le parcours classique si la lecture est impossible." />

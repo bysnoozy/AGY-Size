@@ -5,7 +5,7 @@ namespace AgySize.Core.Reporting;
 /// <summary>
 /// Client-facing label and recommended remediation action for each <see cref="AuditIssueType"/>,
 /// used by the PDF client report. Written in plain language for a non-technical reader, unlike the
-/// technical <see cref="AuditIssue.Description"/> strings used in the CSV/HTML exports.
+/// technical <see cref="AuditIssue.Description"/> strings used in the CSV exports.
 /// </summary>
 public static class RemediationAdvice
 {

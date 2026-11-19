@@ -242,7 +242,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void ExportHtml_Click(object? sender, RoutedEventArgs e)
+    private async void ExportSummaryPdf_Click(object? sender, RoutedEventArgs e)
     {
         var result = ViewModel.LastResult;
         if (result is null)
@@ -258,10 +258,10 @@ public partial class MainWindow : Window
 
         var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Exporter le rapport HTML",
-            SuggestedFileName = "agysize-rapport.html",
+            Title = "Exporter le rapport PDF de synthèse",
+            SuggestedFileName = "agysize-rapport-synthese.pdf",
             SuggestedStartLocation = await GetDefaultExportFolderAsync(topLevel),
-            FileTypeChoices = new[] { new FilePickerFileType("Rapport HTML") { Patterns = new[] { "*.html" } } },
+            FileTypeChoices = new[] { new FilePickerFileType("Rapport PDF") { Patterns = new[] { "*.pdf" } } },
         });
 
         if (file is null)
@@ -271,10 +271,10 @@ public partial class MainWindow : Window
 
         try
         {
-            HtmlReportWriter.WriteReport(result, file.Path.LocalPath);
-            ViewModel.StatusText = $"Rapport HTML enregistré : {file.Path.LocalPath}";
+            SummaryPdfReportWriter.WriteReport(result, file.Path.LocalPath);
+            ViewModel.StatusText = $"Rapport PDF de synthèse enregistré : {file.Path.LocalPath}";
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
             ViewModel.StatusText = $"Export impossible : {ex.Message}";
         }

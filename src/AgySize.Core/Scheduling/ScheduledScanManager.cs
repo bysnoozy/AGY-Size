@@ -13,7 +13,7 @@ public static class ScheduledScanManager
 {
     public static void CreateDailyTask(string taskName, string cliExecutablePath, string scanPath, string exportPath, TimeOnly time)
     {
-        var taskCommand = $"\\\"{cliExecutablePath}\\\" scan \\\"{scanPath}\\\" --html \\\"{exportPath}\\\"";
+        var taskCommand = $"\\\"{cliExecutablePath}\\\" scan \\\"{scanPath}\\\" --pdf \\\"{exportPath}\\\"";
         var arguments = $"/Create /TN \"{taskName}\" /TR \"{taskCommand}\" /SC DAILY /ST {time:HH:mm} /F";
         RunSchTasks(arguments);
     }
